@@ -7,63 +7,80 @@ pipeline {
 
     stages {
 
-        stage('Collect Jobs Safely') {
+        stage('Collect All Jobs (Authenticated REST API)') {
             steps {
                 script {
 
-                    def jobsJson = sh(
-                        script: "curl -g -s ${env.JENKINS_URL}/api/json?tree=jobs[name,url] || echo '{\"jobs\":[]}'",
-                        returnStdout: true
-                    ).trim()
+                    def jobsJson = ""
 
-                    def jobs = [:]
+                    withCredentials([usernamePassword(
+                        credentialsId: 'jenkins-creds',
+                        usernameVariable: 'USER',
+                        passwordVariable: 'TOKEN'
+                    )]) {
 
-                    try {
-                        jobs = readJSON text: jobsJson
-                    } catch (Exception e) {
-                        jobs = [jobs: []]
+                        jobsJson = sh(
+                            script: """
+                            curl -g -s -u $USER:$TOKEN \
+                            ${env.JENKINS_URL}/api/json?tree=jobs[name,url] \
+                            || echo '{"jobs":[]}'
+                            """,
+                            returnStdout: true
+                        ).trim()
                     }
 
-                    writeFile file: "jobs.json",
-                        text: groovy.json.JsonOutput.toJson(jobs)
+                    writeFile file: "jobs.json", text: jobsJson
                 }
             }
         }
 
-        stage('Analyse Build Status (ZERO FAILURE MODE)') {
+        stage('Analyse Build Status (SAFE MODE)') {
             steps {
                 script {
 
                     def jobs = readJSON file: 'jobs.json'
                     def results = []
 
-                    jobs.jobs.each { job ->
+                    withCredentials([usernamePassword(
+                        credentialsId: 'jenkins-creds',
+                        usernameVariable: 'USER',
+                        passwordVariable: 'TOKEN'
+                    )]) {
 
-                        def apiUrl = "${job.url}lastBuild/api/json"
+                        jobs.jobs.each { job ->
 
-                        def response = "{}", build = [:]
+                            def apiUrl = "${job.url}lastBuild/api/json"
 
-                        try {
-                            response = sh(
-                                script: "curl -g -s '${apiUrl}' || echo '{}'",
-                                returnStdout: true
-                            ).trim()
+                            def response = "{}"
 
-                            build = readJSON text: response
+                            try {
+                                response = sh(
+                                    script: """
+                                    curl -g -s -u $USER:$TOKEN '${apiUrl}' || echo '{}'
+                                    """,
+                                    returnStdout: true
+                                ).trim()
+                            } catch(Exception e) {
+                                response = "{}"
+                            }
 
-                        } catch (Exception e) {
-                            build = [result: "ERROR", number: -1]
+                            def build = [:]
+
+                            try {
+                                build = readJSON text: response
+                            } catch(Exception e) {
+                                build = [:]
+                            }
+
+                            def status = build?.result ?: "NO_BUILD"
+                            def number = build?.number ?: -1
+
+                            results << [
+                                job: job.name,
+                                build: number,
+                                status: status
+                            ]
                         }
-
-                        // Normalize safely
-                        def status = build?.result ?: "NO_BUILD"
-                        def number = build?.number ?: -1
-
-                        results << [
-                            job: job.name,
-                            build: number,
-                            status: status
-                        ]
                     }
 
                     writeFile file: "data.json",
@@ -87,12 +104,12 @@ pipeline {
                     def html = """
 <html>
 <head>
-    <title>Zero-Failure Jenkins Dashboard</title>
+    <title>Jenkins Analytics Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <body>
-<h2>🚀 Jenkins Zero-Failure Analytics Dashboard</h2>
+<h2>🚀 Jenkins Enterprise Analytics Dashboard</h2>
 
 <canvas id="chart"></canvas>
 
@@ -102,13 +119,7 @@ const ctx = document.getElementById('chart');
 new Chart(ctx, {
     type: 'pie',
     data: {
-        labels: [
-            'SUCCESS',
-            'FAILURE',
-            'UNSTABLE',
-            'NO_BUILD',
-            'ERROR'
-        ],
+        labels: ['SUCCESS','FAILURE','UNSTABLE','NO_BUILD','ERROR'],
         datasets: [{
             data: [
                 ${success},
@@ -138,7 +149,7 @@ new Chart(ctx, {
             }
         }
 
-        stage('Flaky Job Detection (Safe Mode)') {
+        stage('Flaky Job Detection') {
             steps {
                 script {
 
@@ -147,19 +158,18 @@ new Chart(ctx, {
                     def flaky = data
                         .groupBy { it.job }
                         .findAll { job, builds ->
-
-                            def statuses = builds.collect { it.status }.toSet()
-
-                            return statuses.size() > 1
+                            def states = builds.collect { it.status }.toSet()
+                            return states.size() > 1
                         }
                         .keySet()
 
-                    writeFile file: "flaky.txt", text: flaky.join("\n")
+                    writeFile file: "flaky.txt",
+                        text: flaky.join("\n")
                 }
             }
         }
 
-        stage('Publish Dashboard (Safe)') {
+        stage('Publish Dashboard') {
             steps {
                 script {
                     sh 'ls -l'
@@ -167,7 +177,7 @@ new Chart(ctx, {
                     publishHTML([
                         reportDir: '.',
                         reportFiles: 'dashboard.html',
-                        reportName: 'Zero-Failure Jenkins Dashboard'
+                        reportName: 'Jenkins Enterprise Dashboard'
                     ])
                 }
             }
