@@ -2,88 +2,89 @@ pipeline {
     agent any
 
     stages {
-        stage('Define Cucumber Report URLs') {
+        stage('Process Cucumber Reports') {
             steps {
                 script {
-                    // Using env or a script-scoped map for better reliability
-                    env.REPORT_URLS = [
-                        "API Tests": "http://jenkins/job/API-Tests/lastBuild/artifact/cucumber.json",
-                        "UI Tests": "http://jenkins/job/UI-Tests/lastBuild/artifact/cucumber.json"
-                    ]
-                }
-            }
-        }
-
-        stage('Process Reports') {
-            steps {
-                script {
-                    def passed = 0
-                    def failed = 0
-                    def skipped = 0
-
-                    // Note: In a real environment, ensure you have 'Pipeline Utility Steps' plugin for readJSON
-                    def reports = ["API Tests": "http://jenkins/job/API-Tests/lastBuild/artifact/cucumber.json", "UI Tests": "http://jenkins/job/UI-Tests/lastBuild/artifact/cucumber.json"]
+                    // 1. Initialize a Map to hold data across the script
+                    def stats = [passed: 0, failed: 0, skipped: 0, passPercent: 0]
                     
-                    reports.each { name, url ->
-                        echo "Fetching report for ${name}"
-                        def jsonText = sh(script: "curl -s '${url}' || echo '[]'", returnStdout: true).trim()
+                    def reportLinks = [
+                        [name: "API Tests", url: "http://jenkins/job/API-Tests/lastBuild/artifact/cucumber.json"],
+                        [name: "UI Tests", url: "http://jenkins/job/UI-Tests/lastBuild/artifact/cucumber.json"]
+                    ]
+
+                    reportLinks.each { report ->
+                        echo "Fetching: ${report.name}"
                         
-                        try {
-                            def json = readJSON text: jsonText
-                            json.each { feature ->
-                                feature.elements?.each { scenario ->
-                                    scenario.steps?.each { step ->
-                                        def status = step.result?.status ?: "skipped"
-                                        if(status == "passed") { passed++ }
-                                        else if(status == "failed") { failed++ }
-                                        else { skipped++ }
+                        // Use -f to fail on 404/500 and -L to follow redirects
+                        def jsonText = sh(
+                            script: "curl -s -f -L '${report.url}' || echo '[]'",
+                            returnStdout: true
+                        ).trim()
+
+                        // Validate if it's actually JSON (starts with [ or {)
+                        if (jsonText.startsWith("[") || jsonText.startsWith("{")) {
+                            try {
+                                def json = readJSON text: jsonText
+                                json.each { feature ->
+                                    feature.elements?.each { scenario ->
+                                        scenario.steps?.each { step ->
+                                            def status = step.result?.status ?: "skipped"
+                                            if (status == "passed") stats.passed++
+                                            else if (status == "failed") stats.failed++
+                                            else stats.skipped++
+                                        }
                                     }
                                 }
+                            } catch (Exception e) {
+                                echo "Failed to parse JSON for ${report.name}: ${e.message}"
                             }
-                        } catch(Exception e) {
-                            echo "Could not process ${name}: ${e.message}"
+                        } else {
+                            echo "Skipping ${report.name}: Response was not valid JSON."
                         }
                     }
 
-                    def total = passed + failed + skipped
-                    def passPercent = total > 0 ? ((passed * 100) / total).round(2) : 0
+                    // 2. Calculate Totals
+                    def total = stats.passed + stats.failed + stats.skipped
+                    stats.passPercent = total > 0 ? ((stats.passed * 100) / total).round(2) : 0
 
-                    def summary = [passed: passed, failed: failed, skipped: skipped, passPercent: passPercent]
-                    writeJSON file: 'summary.json', json: summary
-                    
-                    // Generate HTML
-                    def html = """
-                    <html>
-                    <head>
-                        <title>Dashboard</title>
-                        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-                    </head>
-                    <body>
-                        <h2>Test Results: ${passPercent}% Pass</h2>
-                        <div style="width:400px; height:400px;"><canvas id="chart"></canvas></div>
-                        <script>
-                            window.onload = function() {
-                                new Chart(document.getElementById("chart"), {
-                                    type: "pie",
-                                    data: {
-                                        labels: ["Passed","Failed","Skipped"],
-                                        datasets: [{
-                                            data: [${passed}, ${failed}, ${skipped}],
-                                            backgroundColor: ["#2ecc71","#e74c3c","#95a5a6"]
-                                        }]
-                                    }
-                                });
-                            };
-                        </script>
-                    </body>
-                    </html>
-                    """
-                    writeFile file: "dashboard.html", text: html
+                    // 3. Generate HTML with explicit variable injection
+                    def htmlContent = """
+<html>
+<head>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <h2>Test Results</h2>
+    <p><strong>Pass Rate: ${stats.passPercent}%</strong></p>
+    <div style="width:300px;"><canvas id="myChart"></canvas></div>
+    <table border="1">
+        <tr><th>Passed</th><th>Failed</th><th>Skipped</th></tr>
+        <tr><td>${stats.passed}</td><td>${stats.failed}</td><td>${stats.skipped}</td></tr>
+    </table>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            new Chart(document.getElementById('myChart'), {
+                type: 'pie',
+                data: {
+                    labels: ['Passed', 'Failed', 'Skipped'],
+                    datasets: [{
+                        data: [${stats.passed}, ${stats.failed}, ${stats.skipped}],
+                        backgroundColor: ['#2ecc71', '#e74c3c', '#95a5a6']
+                    }]
+                }
+            });
+        });
+    </script>
+</body>
+</html>
+"""
+                    writeFile file: "dashboard.html", text: htmlContent
                 }
             }
         }
 
-        stage('Publish Dashboard') {
+        stage('Publish') {
             steps {
                 publishHTML([
                     allowMissing: false,
