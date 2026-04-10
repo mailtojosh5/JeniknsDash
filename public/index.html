@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Jenkins Dashboard</title>
+</head>
+
+<body style="background:#0f172a;color:white;text-align:center;font-family:Arial;">
+
+<h1>🚀 Jenkins DevOps Dashboard</h1>
+
+<div id="status">Loading...</div>
+
+<script>
+async function load() {
+  const res = await fetch('/api/status');
+  const data = await res.json();
+
+  document.getElementById('status').innerHTML =
+    "Status: " + data.status + "<br>Time: " + data.time;
+}
+
+load();
+setInterval(load, 5000);
+</script>
+
+</body>
+</html>
