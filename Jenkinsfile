@@ -1,50 +1,176 @@
-stage('Analyse Build Status') {
-    steps {
-        script {
+pipeline {
+    agent any
 
-            def jobs = readJSON file: 'jobs.json'
-            def results = []
+    environment {
+        JENKINS_URL = "http://localhost:8080"
+    }
 
-            jobs.jobs.each { job ->
+    stages {
 
-                try {
+        stage('Collect Jobs Safely') {
+            steps {
+                script {
 
-                    // safer URL build
-                    def apiUrl = "${job.url}lastBuild/api/json"
-
-                    def buildJson = sh(
-                        script: "curl -g -s '${apiUrl}' || echo '{}'",
+                    def jobsJson = sh(
+                        script: "curl -g -s ${env.JENKINS_URL}/api/json?tree=jobs[name,url] || echo '{\"jobs\":[]}'",
                         returnStdout: true
                     ).trim()
 
-                    def build = readJSON text: buildJson
+                    def jobs = [:]
 
-                    if (!build || !build.result) {
+                    try {
+                        jobs = readJSON text: jobsJson
+                    } catch (Exception e) {
+                        jobs = [jobs: []]
+                    }
+
+                    writeFile file: "jobs.json",
+                        text: groovy.json.JsonOutput.toJson(jobs)
+                }
+            }
+        }
+
+        stage('Analyse Build Status (ZERO FAILURE MODE)') {
+            steps {
+                script {
+
+                    def jobs = readJSON file: 'jobs.json'
+                    def results = []
+
+                    jobs.jobs.each { job ->
+
+                        def apiUrl = "${job.url}lastBuild/api/json"
+
+                        def response = "{}", build = [:]
+
+                        try {
+                            response = sh(
+                                script: "curl -g -s '${apiUrl}' || echo '{}'",
+                                returnStdout: true
+                            ).trim()
+
+                            build = readJSON text: response
+
+                        } catch (Exception e) {
+                            build = [result: "ERROR", number: -1]
+                        }
+
+                        // Normalize safely
+                        def status = build?.result ?: "NO_BUILD"
+                        def number = build?.number ?: -1
+
                         results << [
                             job: job.name,
-                            build: -1,
-                            status: "NO_BUILD"
-                        ]
-                    } else {
-                        results << [
-                            job: job.name,
-                            build: build.number,
-                            status: build.result
+                            build: number,
+                            status: status
                         ]
                     }
 
-                } catch (Exception e) {
-
-                    results << [
-                        job: job.name,
-                        build: -1,
-                        status: "ERROR"
-                    ]
+                    writeFile file: "data.json",
+                        text: groovy.json.JsonOutput.toJson(results)
                 }
             }
+        }
 
-            writeFile file: 'data.json',
-                text: groovy.json.JsonOutput.toJson(results)
+        stage('Generate Dashboard HTML') {
+            steps {
+                script {
+
+                    def data = readJSON file: 'data.json'
+
+                    def success = data.count { it.status == "SUCCESS" }
+                    def failed = data.count { it.status == "FAILURE" }
+                    def unstable = data.count { it.status == "UNSTABLE" }
+                    def noBuild = data.count { it.status == "NO_BUILD" }
+                    def error = data.count { it.status == "ERROR" }
+
+                    def html = """
+<html>
+<head>
+    <title>Zero-Failure Jenkins Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+<h2>🚀 Jenkins Zero-Failure Analytics Dashboard</h2>
+
+<canvas id="chart"></canvas>
+
+<script>
+const ctx = document.getElementById('chart');
+
+new Chart(ctx, {
+    type: 'pie',
+    data: {
+        labels: [
+            'SUCCESS',
+            'FAILURE',
+            'UNSTABLE',
+            'NO_BUILD',
+            'ERROR'
+        ],
+        datasets: [{
+            data: [
+                ${success},
+                ${failed},
+                ${unstable},
+                ${noBuild},
+                ${error}
+            ],
+            backgroundColor: [
+                'green',
+                'red',
+                'orange',
+                'gray',
+                'black'
+            ]
+        }]
+    }
+});
+</script>
+
+</body>
+</html>
+"""
+
+                    writeFile file: "dashboard.html", text: html
+                }
+            }
+        }
+
+        stage('Flaky Job Detection (Safe Mode)') {
+            steps {
+                script {
+
+                    def data = readJSON file: 'data.json'
+
+                    def flaky = data
+                        .groupBy { it.job }
+                        .findAll { job, builds ->
+
+                            def statuses = builds.collect { it.status }.toSet()
+
+                            return statuses.size() > 1
+                        }
+                        .keySet()
+
+                    writeFile file: "flaky.txt", text: flaky.join("\n")
+                }
+            }
+        }
+
+        stage('Publish Dashboard (Safe)') {
+            steps {
+                script {
+                    sh 'ls -l'
+
+                    publishHTML([
+                        reportDir: '.',
+                        reportFiles: 'dashboard.html',
+                        reportName: 'Zero-Failure Jenkins Dashboard'
+                    ])
+                }
+            }
         }
     }
 }
