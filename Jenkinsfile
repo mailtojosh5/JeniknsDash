@@ -3,69 +3,82 @@ pipeline {
 
     stages {
 
-        stage('Define Job APIs') {
+        stage('Define Cucumber Report URLs') {
             steps {
                 script {
 
-                    jobApis = [
+                    cucumberReports = [
                         [
-                            name: "API-Tests",
-                            url: "http://localhost:8080/job/API-Tests/lastBuild/api/json"
+                            name: "API Tests",
+                            url: "http://jenkins/job/API-Tests/lastBuild/artifact/cucumber.json"
                         ],
                         [
-                            name: "UI-Tests",
-                            url: "http://localhost:8080/job/UI-Tests/lastBuild/api/json"
-                        ],
-                        [
-                            name: "Regression",
-                            url: "http://localhost:8080/job/Regression/lastBuild/api/json"
+                            name: "UI Tests",
+                            url: "http://jenkins/job/UI-Tests/lastBuild/artifact/cucumber.json"
                         ]
                     ]
 
-                    echo "Total jobs configured: ${jobApis.size()}"
+                    echo "Reports configured: ${cucumberReports.size()}"
                 }
             }
         }
 
-        stage('Fetch Build Data') {
+        stage('Download Cucumber Reports') {
             steps {
                 script {
 
-                    def results = []
+                    def passed = 0
+                    def failed = 0
+                    def skipped = 0
 
-                    jobApis.each { job ->
+                    cucumberReports.each { report ->
 
-                        echo "Fetching ${job.name}"
+                        echo "Fetching report for ${report.name}"
 
-                        def response = sh(
-                            script: """
-                            curl -s '${job.url}' || echo '{}'
-                            """,
+                        def jsonText = sh(
+                            script: "curl -s '${report.url}' || echo '[]'",
                             returnStdout: true
                         ).trim()
 
-                        def build = [:]
+                        def json = []
 
                         try {
-                            build = readJSON text: response
+                            json = readJSON text: jsonText
                         } catch(Exception e) {
-                            build = [:]
+                            echo "Invalid JSON for ${report.name}"
+                            json = []
                         }
 
-                        def status = build?.result ?: "NO_BUILD"
-                        def number = build?.number ?: -1
+                        json.each { feature ->
 
-                        echo "${job.name} -> ${status}"
+                            feature.elements?.each { scenario ->
 
-                        results << [
-                            job: job.name,
-                            build: number,
-                            status: status
-                        ]
+                                scenario.steps?.each { step ->
+
+                                    def status = step.result?.status ?: "skipped"
+
+                                    if(status == "passed") { passed++ }
+                                    if(status == "failed") { failed++ }
+                                    if(status == "skipped") { skipped++ }
+                                }
+                            }
+                        }
                     }
 
-                    writeFile file: "data.json",
-                        text: groovy.json.JsonOutput.toJson(results)
+                    total = passed + failed + skipped
+                    passPercent = total > 0 ? ((passed * 100) / total).round(2) : 0
+
+                    echo "PASSED: ${passed}"
+                    echo "FAILED: ${failed}"
+                    echo "SKIPPED: ${skipped}"
+                    echo "PASS %: ${passPercent}"
+
+                    writeFile file: "summary.json", text: groovy.json.JsonOutput.toJson([
+                        passed: passed,
+                        failed: failed,
+                        skipped: skipped,
+                        passPercent: passPercent
+                    ])
                 }
             }
         }
@@ -74,56 +87,53 @@ pipeline {
             steps {
                 script {
 
-                    def data = readJSON file: 'data.json'
-
-                    def success = data.count { it.status == "SUCCESS" }
-                    def failure = data.count { it.status == "FAILURE" }
-                    def unstable = data.count { it.status == "UNSTABLE" }
-                    def nobuild = data.count { it.status == "NO_BUILD" }
+                    def data = readJSON file: 'summary.json'
 
                     def html = """
 <html>
 <head>
-<title>Jenkins Dashboard</title>
+<title>Cucumber Test Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <body>
 
-<h2>Jenkins Job Execution Summary</h2>
+<h2>Cucumber Test Execution Dashboard</h2>
 
-<canvas id="chart"></canvas>
+<h3>Pass Percentage: ${data.passPercent}%</h3>
+
+<canvas id="chart" width="400" height="400"></canvas>
 
 <script>
 
-new Chart(document.getElementById('chart'), {
-type: 'pie',
-data: {
-labels: ['SUCCESS','FAILURE','UNSTABLE','NO_BUILD'],
-datasets: [{
-data: [${success},${failure},${unstable},${nobuild}],
-backgroundColor: ['green','red','orange','gray']
-}]
-}
+new Chart(document.getElementById("chart"), {
+    type: "pie",
+    data: {
+        labels: ["Passed","Failed","Skipped"],
+        datasets: [{
+            data: [${data.passed}, ${data.failed}, ${data.skipped}],
+            backgroundColor: ["green","red","gray"]
+        }]
+    }
 });
 
 </script>
 
-<h3>Job Results</h3>
-
-<table border="1">
+<table border="1" style="margin-top:30px">
 <tr>
-<th>Job</th>
-<th>Build</th>
-<th>Status</th>
+<th>Passed</th>
+<th>Failed</th>
+<th>Skipped</th>
+<th>Pass %</th>
 </tr>
-"""
 
-                    data.each { row ->
-                        html += "<tr><td>${row.job}</td><td>${row.build}</td><td>${row.status}</td></tr>"
-                    }
+<tr>
+<td>${data.passed}</td>
+<td>${data.failed}</td>
+<td>${data.skipped}</td>
+<td>${data.passPercent}%</td>
+</tr>
 
-                    html += """
 </table>
 
 </body>
@@ -141,8 +151,9 @@ backgroundColor: ['green','red','orange','gray']
                 publishHTML([
                     reportDir: '.',
                     reportFiles: 'dashboard.html',
-                    reportName: 'Jenkins Execution Dashboard'
+                    reportName: 'Cucumber Test Dashboard'
                 ])
+
             }
         }
 
