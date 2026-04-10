@@ -2,70 +2,67 @@ pipeline {
     agent any
 
     stages {
-        stage('Scrape Cucumber HTML') {
+        stage('Scrape HTML Report') {
             steps {
                 script {
-                    // The URL to your existing HTML report
+                    // 1. Define the URL
                     def reportUrl = "https://your-server/path/to/cucumber-report.html"
                     
-                    // 1. Fetch the HTML content
-                    // Using -k if your certs are self-signed
-                    def htmlText = sh(
-                        script: "curl -s -k -f -L '${reportUrl}' || echo ''",
-                        returnStdout: true
-                    ).trim()
-
-                    if (!htmlText) {
-                        error "Could not fetch the HTML report from ${reportUrl}"
+                    def htmlText = ""
+                    try {
+                        // Using Groovy's native way to read text from a URL
+                        // This uses the Jenkins JVM's networking (ignores some CLI auth issues)
+                        htmlText = new URL(reportUrl).getText(requestProperties: ["Accept": "text/html"])
+                    } catch (Exception e) {
+                        error "Failed to fetch report: ${e.message}"
                     }
 
-                    // 2. Extract Numbers using Regex
-                    // Note: Cucumber HTML reports usually store totals in tags like:
-                    // <td class="passed">15</td> OR <span>15 passed</span>
-                    // Adjust the regex below based on your specific report's HTML source
-                    
-                    def passed = extractCount(htmlText, /class="passed">(\d+)</) ?: extractCount(htmlText, /(\d+) passed/) ?: 0
-                    def failed = extractCount(htmlText, /class="failed">(\d+)</) ?: extractCount(htmlText, /(\d+) failed/) ?: 0
-                    def skipped = extractCount(htmlText, /class="skipped">(\d+)</) ?: extractCount(htmlText, /(\d+) skipped/) ?: 0
+                    // 2. Extract Numbers (Regex Scraper)
+                    // We look for patterns like "15 passed" or ">15<" inside passed-colored cells
+                    def passed = extractCount(htmlText, /(\d+)\s+passed/) ?: extractCount(htmlText, /class="passed">(\d+)</) ?: 0
+                    def failed = extractCount(htmlText, /(\d+)\s+failed/) ?: extractCount(htmlText, /class="failed">(\d+)</) ?: 0
+                    def skipped = extractCount(htmlText, /(\d+)\s+skipped/) ?: extractCount(htmlText, /class="skipped">(\d+)</) ?: 0
 
                     def total = passed + failed + skipped
                     def passPercent = total > 0 ? ((passed * 100) / total).round(2) : 0
 
-                    echo "Scraped Totals -> Passed: ${passed}, Failed: ${failed}, Skipped: ${skipped}"
+                    echo "Results Extracted: P:${passed} F:${failed} S:${skipped}"
 
-                    // 3. Generate the Dashboard
-                    def dashboardHtml = """
-                    <html>
-                    <head>
-                        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-                        <style>body { font-family: Arial; text-align: center; padding: 20px; }</style>
-                    </head>
-                    <body>
-                        <h2>Automated Test Summary</h2>
-                        <div style="width:300px; margin:auto;"><canvas id="myChart"></canvas></div>
-                        <p><strong>Success Rate: ${passPercent}%</strong></p>
-                        <p><a href="${reportUrl}" target="_blank">View Original Full Report</a></p>
-                        <script>
-                            new Chart(document.getElementById('myChart'), {
-                                type: 'pie',
-                                data: {
-                                    labels: ['Passed', 'Failed', 'Skipped'],
-                                    datasets: [{
-                                        data: [${passed}, ${failed}, ${skipped}],
-                                        backgroundColor: ['#2ecc71', '#e74c3c', '#95a5a6']
-                                    }]
-                                }
-                            });
-                        </script>
-                    </body>
-                    </html>
-                    """
-                    writeFile file: 'dashboard.html', text: dashboardHtml
+                    // 3. Create the Dashboard HTML
+                    def dashboard = """
+<html>
+<head>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 20px; }
+        .chart-container { width: 300px; margin: auto; }
+    </style>
+</head>
+<body>
+    <h2>Test Execution Summary</h2>
+    <div class="chart-container"><canvas id="myChart"></canvas></div>
+    <h3>Pass Rate: ${passPercent}%</h3>
+    <script>
+        new Chart(document.getElementById('myChart'), {
+            type: 'pie',
+            data: {
+                labels: ['Passed', 'Failed', 'Skipped'],
+                datasets: [{
+                    data: [${passed}, ${failed}, ${skipped}],
+                    backgroundColor: ['#2ecc71', '#e74c3c', '#95a5a6']
+                }]
+            }
+        });
+    </script>
+</body>
+</html>
+"""
+                    writeFile file: 'dashboard.html', text: dashboard
                 }
             }
         }
 
-        stage('Publish') {
+        stage('Publish Dashboard') {
             steps {
                 publishHTML([
                     allowMissing: false,
@@ -73,14 +70,14 @@ pipeline {
                     keepAll: true,
                     reportDir: '.',
                     reportFiles: 'dashboard.html',
-                    reportName: 'Executive Summary'
+                    reportName: 'Executive Dashboard'
                 ])
             }
         }
     }
 }
 
-// Helper function to find numbers in the HTML string
+// Helper function to find the numbers in the HTML
 def extractCount(String text, String regex) {
     def matcher = (text =~ regex)
     if (matcher.find()) {
