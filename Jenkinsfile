@@ -1,67 +1,116 @@
 pipeline {
     agent any
 
-    environment {
-        APP_NAME = "jenkins-dashboard"
-    }
-
     stages {
 
-        stage('Checkout') {
+        stage('Collect Jenkins Data') {
             steps {
-                checkout scm
+                script {
+
+                    def jenkins = Jenkins.getInstanceOrNull()
+                    def jobs = Jenkins.instance.getAllItems(Job)
+
+                    def results = []
+
+                    jobs.each { job ->
+
+                        try {
+                            def lastBuild = job.getLastBuild()
+
+                            if (lastBuild != null) {
+
+                                def status = lastBuild.getResult()?.toString() ?: "UNKNOWN"
+
+                                results << [
+                                    job   : job.getFullName(),
+                                    build : lastBuild.getNumber(),
+                                    status: status
+                                ]
+                            }
+
+                        } catch (Exception e) {
+                            // ignore inaccessible jobs
+                        }
+                    }
+
+                    writeFile file: 'data.json', text: groovy.json.JsonOutput.toJson(results)
+                }
             }
         }
 
-        stage('Install Dependencies') {
+        stage('Generate Dashboard') {
             steps {
-                bat 'npm install'
+                script {
+
+                    def data = readJSON file: 'data.json'
+
+                    def passed = data.count { it.status == "SUCCESS" }
+                    def failed = data.count { it.status == "FAILURE" }
+                    def unstable = data.count { it.status == "UNSTABLE" }
+
+                    def html = """
+<html>
+<head>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+    <h2>Jenkins Test Dashboard</h2>
+
+    <canvas id="chart"></canvas>
+
+    <script>
+        const ctx = document.getElementById('chart');
+
+        new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: ['SUCCESS', 'FAILURE', 'UNSTABLE'],
+                datasets: [{
+                    data: [${passed}, ${failed}, ${unstable}],
+                    backgroundColor: ['green', 'red', 'orange']
+                }]
+            }
+        });
+    </script>
+
+</body>
+</html>
+"""
+
+                    writeFile file: 'dashboard.html', text: html
+                }
             }
         }
 
-        stage('Install PM2') {
+        stage('Flaky Job Detection') {
             steps {
-                bat '''
-                where pm2 >nul 2>nul
-                if %errorlevel% neq 0 (
-                    echo Installing PM2...
-                    npm install -g pm2
-                ) else (
-                    echo PM2 already installed
-                )
-                '''
+                script {
+
+                    def data = readJSON file: 'data.json'
+
+                    def flaky = data
+                        .groupBy { it.job }
+                        .findAll { k, v ->
+                            def statuses = v.collect { it.status }.toSet()
+                            return statuses.size() > 1
+                        }
+                        .keySet()
+
+                    writeFile file: 'flaky.txt', text: flaky.join("\n")
+
+                }
             }
         }
 
-        stage('Deploy (Zero Downtime)') {
+        stage('Publish Dashboard') {
             steps {
-                bat '''
-                pm2 describe %APP_NAME% >nul 2>nul
-
-                if %errorlevel%==0 (
-                    echo Reloading app (zero downtime)
-                    pm2 reload %APP_NAME%
-                ) else (
-                    echo Starting app
-                    pm2 start server.js --name %APP_NAME%
-                )
-                '''
+                publishHTML([
+                    reportDir: '.',
+                    reportFiles: 'dashboard.html',
+                    reportName: 'Jenkins Test Dashboard'
+                ])
             }
-        }
-
-        stage('Save PM2') {
-            steps {
-                bat 'pm2 save'
-            }
-        }
-    }
-
-    post {
-        success {
-            echo "Dashboard deployed successfully 🚀"
-        }
-        failure {
-            echo "Deployment failed ❌"
         }
     }
 }
