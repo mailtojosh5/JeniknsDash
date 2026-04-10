@@ -1,86 +1,67 @@
 pipeline {
     agent any
 
-    environment {
-        JENKINS_URL = "http://localhost:8080"
-    }
-
     stages {
 
-        stage('Collect All Jobs (Authenticated REST API)') {
+        stage('Define Job APIs') {
             steps {
                 script {
 
-                    def jobsJson = ""
+                    jobApis = [
+                        [
+                            name: "API-Tests",
+                            url: "http://localhost:8080/job/API-Tests/lastBuild/api/json"
+                        ],
+                        [
+                            name: "UI-Tests",
+                            url: "http://localhost:8080/job/UI-Tests/lastBuild/api/json"
+                        ],
+                        [
+                            name: "Regression",
+                            url: "http://localhost:8080/job/Regression/lastBuild/api/json"
+                        ]
+                    ]
 
-                    withCredentials([usernamePassword(
-                        credentialsId: 'jenkins-creds',
-                        usernameVariable: 'USER',
-                        passwordVariable: 'TOKEN'
-                    )]) {
-
-                        jobsJson = sh(
-                            script: """
-                            curl -g -s -u $USER:$TOKEN \
-                            ${env.JENKINS_URL}/api/json?tree=jobs[name,url] \
-                            || echo '{"jobs":[]}'
-                            """,
-                            returnStdout: true
-                        ).trim()
-                    }
-
-                    writeFile file: "jobs.json", text: jobsJson
+                    echo "Total jobs configured: ${jobApis.size()}"
                 }
             }
         }
 
-        stage('Analyse Build Status (SAFE MODE)') {
+        stage('Fetch Build Data') {
             steps {
                 script {
 
-                    def jobs = readJSON file: 'jobs.json'
                     def results = []
 
-                    withCredentials([usernamePassword(
-                        credentialsId: 'jenkins-creds',
-                        usernameVariable: 'USER',
-                        passwordVariable: 'TOKEN'
-                    )]) {
+                    jobApis.each { job ->
 
-                        jobs.jobs.each { job ->
+                        echo "Fetching ${job.name}"
 
-                            def apiUrl = "${job.url}lastBuild/api/json"
+                        def response = sh(
+                            script: """
+                            curl -s '${job.url}' || echo '{}'
+                            """,
+                            returnStdout: true
+                        ).trim()
 
-                            def response = "{}"
+                        def build = [:]
 
-                            try {
-                                response = sh(
-                                    script: """
-                                    curl -g -s -u $USER:$TOKEN '${apiUrl}' || echo '{}'
-                                    """,
-                                    returnStdout: true
-                                ).trim()
-                            } catch(Exception e) {
-                                response = "{}"
-                            }
-
-                            def build = [:]
-
-                            try {
-                                build = readJSON text: response
-                            } catch(Exception e) {
-                                build = [:]
-                            }
-
-                            def status = build?.result ?: "NO_BUILD"
-                            def number = build?.number ?: -1
-
-                            results << [
-                                job: job.name,
-                                build: number,
-                                status: status
-                            ]
+                        try {
+                            build = readJSON text: response
+                        } catch(Exception e) {
+                            build = [:]
                         }
+
+                        def status = build?.result ?: "NO_BUILD"
+                        def number = build?.number ?: -1
+
+                        echo "${job.name} -> ${status}"
+
+                        results << [
+                            job: job.name,
+                            build: number,
+                            status: status
+                        ]
                     }
 
                     writeFile file: "data.json",
@@ -89,56 +70,61 @@ pipeline {
             }
         }
 
-        stage('Generate Dashboard HTML') {
+        stage('Generate Dashboard') {
             steps {
                 script {
 
                     def data = readJSON file: 'data.json'
 
                     def success = data.count { it.status == "SUCCESS" }
-                    def failed = data.count { it.status == "FAILURE" }
+                    def failure = data.count { it.status == "FAILURE" }
                     def unstable = data.count { it.status == "UNSTABLE" }
-                    def noBuild = data.count { it.status == "NO_BUILD" }
-                    def error = data.count { it.status == "ERROR" }
+                    def nobuild = data.count { it.status == "NO_BUILD" }
 
                     def html = """
 <html>
 <head>
-    <title>Jenkins Analytics Dashboard</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<title>Jenkins Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <body>
-<h2>🚀 Jenkins Enterprise Analytics Dashboard</h2>
+
+<h2>Jenkins Job Execution Summary</h2>
 
 <canvas id="chart"></canvas>
 
 <script>
-const ctx = document.getElementById('chart');
 
-new Chart(ctx, {
-    type: 'pie',
-    data: {
-        labels: ['SUCCESS','FAILURE','UNSTABLE','NO_BUILD','ERROR'],
-        datasets: [{
-            data: [
-                ${success},
-                ${failed},
-                ${unstable},
-                ${noBuild},
-                ${error}
-            ],
-            backgroundColor: [
-                'green',
-                'red',
-                'orange',
-                'gray',
-                'black'
-            ]
-        }]
-    }
+new Chart(document.getElementById('chart'), {
+type: 'pie',
+data: {
+labels: ['SUCCESS','FAILURE','UNSTABLE','NO_BUILD'],
+datasets: [{
+data: [${success},${failure},${unstable},${nobuild}],
+backgroundColor: ['green','red','orange','gray']
+}]
+}
 });
+
 </script>
+
+<h3>Job Results</h3>
+
+<table border="1">
+<tr>
+<th>Job</th>
+<th>Build</th>
+<th>Status</th>
+</tr>
+"""
+
+                    data.each { row ->
+                        html += "<tr><td>${row.job}</td><td>${row.build}</td><td>${row.status}</td></tr>"
+                    }
+
+                    html += """
+</table>
 
 </body>
 </html>
@@ -149,38 +135,16 @@ new Chart(ctx, {
             }
         }
 
-        stage('Flaky Job Detection') {
-            steps {
-                script {
-
-                    def data = readJSON file: 'data.json'
-
-                    def flaky = data
-                        .groupBy { it.job }
-                        .findAll { job, builds ->
-                            def states = builds.collect { it.status }.toSet()
-                            return states.size() > 1
-                        }
-                        .keySet()
-
-                    writeFile file: "flaky.txt",
-                        text: flaky.join("\n")
-                }
-            }
-        }
-
         stage('Publish Dashboard') {
             steps {
-                script {
-                    sh 'ls -l'
 
-                    publishHTML([
-                        reportDir: '.',
-                        reportFiles: 'dashboard.html',
-                        reportName: 'Jenkins Enterprise Dashboard'
-                    ])
-                }
+                publishHTML([
+                    reportDir: '.',
+                    reportFiles: 'dashboard.html',
+                    reportName: 'Jenkins Execution Dashboard'
+                ])
             }
         }
+
     }
 }
