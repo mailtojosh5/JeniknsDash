@@ -3,12 +3,11 @@ pipeline {
 
     environment {
         APP_NAME = "jenkins-dashboard"
-        PORT = "3000"
     }
 
     stages {
 
-        stage('Checkout Code') {
+        stage('Checkout') {
             steps {
                 checkout scm
             }
@@ -16,73 +15,53 @@ pipeline {
 
         stage('Install Dependencies') {
             steps {
-                sh 'npm install'
+                bat 'npm install'
             }
         }
 
-        /*
-        ----------------------------------
-        INSTALL PM2 LOCALLY (NO ROOT)
-        ----------------------------------
-        */
-        stage('Install PM2 (Local)') {
+        stage('Install PM2') {
             steps {
-                sh '''
-                if ! command -v pm2 &> /dev/null
-                then
-                    echo "📦 Installing PM2 locally..."
+                bat '''
+                where pm2 >nul 2>nul
+                if %errorlevel% neq 0 (
+                    echo Installing PM2...
                     npm install -g pm2
-                else
-                    echo "✅ PM2 already installed"
-                fi
+                ) else (
+                    echo PM2 already installed
+                )
                 '''
             }
         }
 
-        /*
-        ----------------------------------
-        START OR RELOAD APP
-        ----------------------------------
-        */
-        stage('Deploy with PM2 (Zero Downtime)') {
+        stage('Deploy (Zero Downtime)') {
             steps {
-                sh '''
-                export PATH=$PATH:$(npm bin -g)
+                bat '''
+                pm2 describe %APP_NAME% >nul 2>nul
 
-                if pm2 list | grep -q "$APP_NAME"; then
-                    echo "🔄 Reloading existing app (zero downtime)"
-                    pm2 reload $APP_NAME
-                else
-                    echo "🚀 Starting new app"
-                    pm2 start server.js --name $APP_NAME --watch
-                fi
+                if %errorlevel%==0 (
+                    echo Reloading app (zero downtime)
+                    pm2 reload %APP_NAME%
+                ) else (
+                    echo Starting app
+                    pm2 start server.js --name %APP_NAME%
+                )
                 '''
             }
         }
 
-        /*
-        ----------------------------------
-        SAVE PM2 STATE (NO STARTUP REQUIRED)
-        ----------------------------------
-        */
-        stage('Save PM2 Process List') {
+        stage('Save PM2') {
             steps {
-                sh '''
-                pm2 save || echo "⚠️ pm2 save skipped (no startup access)"
-                '''
+                bat 'pm2 save'
             }
         }
     }
 
     post {
-
         success {
-            echo "✅ Dashboard deployed successfully"
-            echo "🌐 http://<jenkins-server-ip>:3000"
+            echo "Dashboard deployed successfully 🚀"
         }
-
         failure {
-            echo "❌ Deployment failed - check logs"
+            echo "Deployment failed ❌"
         }
     }
 }
