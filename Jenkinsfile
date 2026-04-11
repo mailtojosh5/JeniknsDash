@@ -5,7 +5,6 @@ pipeline {
 
         stage('Copy Cucumber Reports From Jobs') {
             steps {
-
                 script {
 
                     jobs = [
@@ -28,17 +27,14 @@ pipeline {
                         )
                     }
                 }
-
             }
         }
 
-        stage('Parse Cucumber Reports') {
+        stage('Parse Cucumber Reports (Per Job Analytics)') {
             steps {
                 script {
 
-                    def passed = 0
-                    def failed = 0
-                    def skipped = 0
+                    def jobResults = []
 
                     def files = findFiles(glob: 'reports/**/cucumber.json')
 
@@ -46,47 +42,91 @@ pipeline {
 
                     files.each { file ->
 
-                        def json = readJSON file: file.path
+                        def jobName = file.path.tokenize('/')[1]
+
+                        def json = []
+
+                        try {
+                            json = readJSON file: file.path
+                        } catch(Exception e) {
+                            echo "Invalid JSON in ${file.path}"
+                            json = []
+                        }
+
+                        def passed = 0
+                        def failed = 0
+                        def skipped = 0
 
                         json.each { feature ->
-
                             feature.elements?.each { scenario ->
-
                                 scenario.steps?.each { step ->
 
                                     def status = step.result?.status ?: "skipped"
 
                                     if(status == "passed") passed++
-                                    if(status == "failed") failed++
-                                    if(status == "skipped") skipped++
+                                    else if(status == "failed") failed++
+                                    else skipped++
                                 }
                             }
                         }
+
+                        def total = passed + failed + skipped
+
+                        // SAFE Jenkins-compatible percentage (NO round(), NO Math.round)
+                        def passPercent = total > 0 ?
+                            (((passed * 100.0) / total) * 100 as int) / 100.0
+                            : 0
+
+                        jobResults << [
+                            name: jobName,
+                            passed: passed,
+                            failed: failed,
+                            skipped: skipped,
+                            passPercent: passPercent
+                        ]
+
+                        echo "${jobName} -> Passed:${passed}, Failed:${failed}, Skipped:${skipped}, Pass%:${passPercent}"
                     }
 
-                    total = passed + failed + skipped
-                    passPercent = total > 0 ? ((passed * 100) / total).round(2) : 0
-
-                    echo "Passed: ${passed}"
-                    echo "Failed: ${failed}"
-                    echo "Skipped: ${skipped}"
-                    echo "Pass %: ${passPercent}"
-
-                    writeFile file: "summary.json", text: groovy.json.JsonOutput.toJson([
-                        passed: passed,
-                        failed: failed,
-                        skipped: skipped,
-                        passPercent: passPercent
-                    ])
+                    writeFile file: "summary.json",
+                        text: groovy.json.JsonOutput.toJson(jobResults)
                 }
             }
         }
 
-        stage('Generate Dashboard') {
+        stage('Generate Dashboard (Multi-Job Charts)') {
             steps {
                 script {
 
                     def data = readJSON file: 'summary.json'
+
+                    def charts = ""
+
+                    data.each { job ->
+
+                        charts += """
+                        <div style="margin-bottom:40px;">
+                            <h2>${job.name}</h2>
+                            <h3>Pass Percentage: ${job.passPercent}%</h3>
+
+                            <canvas id="chart_${job.name}" width="400" height="300"></canvas>
+
+                            <script>
+                                new Chart(document.getElementById("chart_${job.name}"), {
+                                    type: "pie",
+                                    data: {
+                                        labels: ["Passed","Failed","Skipped"],
+                                        datasets: [{
+                                            data: [${job.passed}, ${job.failed}, ${job.skipped}],
+                                            backgroundColor: ["green","red","gray"]
+                                        }]
+                                    }
+                                });
+                            </script>
+                        </div>
+                        <hr/>
+                        """
+                    }
 
                     def html = """
 <html>
@@ -97,44 +137,9 @@ pipeline {
 
 <body>
 
-<h2>Cucumber Test Dashboard</h2>
+<h1>🚀 Cucumber Multi-Job Dashboard</h1>
 
-<h3>Pass Percentage: ${data.passPercent}%</h3>
-
-<canvas id="chart"></canvas>
-
-<script>
-
-new Chart(document.getElementById("chart"), {
-type: "pie",
-data: {
-labels: ["Passed","Failed","Skipped"],
-datasets: [{
-data: [${data.passed},${data.failed},${data.skipped}],
-backgroundColor:["green","red","gray"]
-}]
-}
-});
-
-</script>
-
-<table border="1" style="margin-top:20px">
-
-<tr>
-<th>Passed</th>
-<th>Failed</th>
-<th>Skipped</th>
-<th>Pass %</th>
-</tr>
-
-<tr>
-<td>${data.passed}</td>
-<td>${data.failed}</td>
-<td>${data.skipped}</td>
-<td>${data.passPercent}%</td>
-</tr>
-
-</table>
+${charts}
 
 </body>
 </html>
@@ -147,13 +152,11 @@ backgroundColor:["green","red","gray"]
 
         stage('Publish Dashboard') {
             steps {
-
                 publishHTML([
                     reportDir: '.',
                     reportFiles: 'dashboard.html',
-                    reportName: 'Cucumber Test Dashboard'
+                    reportName: 'Cucumber Multi-Job Dashboard'
                 ])
-
             }
         }
 
