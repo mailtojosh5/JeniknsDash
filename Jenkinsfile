@@ -3,11 +3,13 @@ pipeline {
 
     stages {
 
-        stage('Scan Workspace for Cucumber JSON') {
+        stage('Discover Cucumber Reports (Workspace Scan)') {
             steps {
                 script {
 
-                    workspaceRoot = "/opt/jenkins/workspace"
+                    def workspaceRoot = "/opt/jenkins/workspace"
+
+                    sh "mkdir -p reports"
 
                     def files = sh(
                         script: """
@@ -18,67 +20,72 @@ pipeline {
 
                     echo "Found ${files.size()} cucumber files"
 
-                    // store directly (NO COPY)
                     writeFile file: "fileList.txt", text: files.join("\n")
                 }
             }
         }
 
-        stage('Parse All Reports Directly') {
+        stage('Parse Cucumber Reports (Auto Job Detection)') {
             steps {
                 script {
 
                     def files = readFile("fileList.txt").split("\n")
 
-                    def jobStats = [:]
+                    def jobResults = [:]
 
                     files.each { file ->
 
-                        if(file?.trim()) {
+                        if(!file?.trim()) return
 
-                            echo "Reading: ${file}"
+                        echo "Reading: ${file}"
 
-                            def jobName = file.tokenize("/")[-4] ?: "Unknown"
+                        def parts = file.tokenize("/")
 
-                            def json = []
+                        // Safe job name extraction (works for deep folders)
+                        def jobName = parts.size() > 3 ? parts[-3] : "Unknown"
 
-                            try {
-                                json = readJSON text: readFile(file)
-                            } catch(Exception e) {
-                                echo "Skipping invalid JSON: ${file}"
-                                return
-                            }
+                        def json = []
 
-                            if(!jobStats.containsKey(jobName)) {
-                                jobStats[jobName] = [
-                                    passed:0,
-                                    failed:0,
-                                    skipped:0
-                                ]
-                            }
+                        try {
+                            json = readJSON text: readFile(file)
+                        } catch(Exception e) {
+                            echo "Skipping invalid JSON: ${file}"
+                            return
+                        }
 
-                            json.each { feature ->
-                                feature.elements?.each { scenario ->
-                                    scenario.steps?.each { step ->
+                        if(!jobResults.containsKey(jobName)) {
+                            jobResults[jobName] = [
+                                passed:0,
+                                failed:0,
+                                skipped:0
+                            ]
+                        }
 
-                                        def status = step.result?.status ?: "skipped"
+                        json.each { feature ->
+                            feature.elements?.each { scenario ->
+                                scenario.steps?.each { step ->
 
-                                        if(status == "passed") jobStats[jobName].passed++
-                                        else if(status == "failed") jobStats[jobName].failed++
-                                        else jobStats[jobName].skipped++
-                                    }
+                                    def status = step.result?.status ?: "skipped"
+
+                                    if(status == "passed")
+                                        jobResults[jobName].passed++
+                                    else if(status == "failed")
+                                        jobResults[jobName].failed++
+                                    else
+                                        jobResults[jobName].skipped++
                                 }
                             }
                         }
                     }
 
-                    writeFile file: "summary.json",
-                        text: groovy.json.JsonBuilder(jobStats).toPrettyString()
+                    // SAFE JSON WRITE (no JsonOutput, no static methods)
+                    def jsonText = groovy.json.JsonBuilder(jobResults).toPrettyString()
+                    writeFile file: "summary.json", text: jsonText
                 }
             }
         }
 
-        stage('Generate Dashboard') {
+        stage('Generate Dashboard (Clean Multi-Job UI)') {
             steps {
                 script {
 
@@ -96,15 +103,15 @@ pipeline {
                             (((stats.passed * 100.0) / total) * 100 as int) / 100.0
                             : 0
 
-                        def id = "chart_${i}"
+                        def chartId = "chart_${i}"
                         def displayName = job.tokenize('/').last()
 
                         cards += """
                         <div class="card">
                             <h2>${displayName}</h2>
-                            <div class="badge">Pass %: ${passPercent}</div>
+                            <div class="badge">Pass %: ${passPercent}%</div>
 
-                            <canvas id="${id}"></canvas>
+                            <canvas id="${chartId}"></canvas>
 
                             <div class="stats">
                                 Passed: ${stats.passed} |
@@ -115,7 +122,7 @@ pipeline {
                         """
 
                         scripts += """
-                        new Chart(document.getElementById("${id}"), {
+                        new Chart(document.getElementById("${chartId}"), {
                             type: "pie",
                             data: {
                                 labels: ["Passed","Failed","Skipped"],
@@ -182,7 +189,7 @@ h1 {
 
 <body>
 
-<h1>🚀 Zero-Copy Cucumber Dashboard</h1>
+<h1>🚀 Cucumber Multi-Job Dashboard</h1>
 
 <div class="grid">
 ${cards}
@@ -206,9 +213,10 @@ ${scripts}
                 publishHTML([
                     reportDir: '.',
                     reportFiles: 'dashboard.html',
-                    reportName: 'Cucumber Dashboard'
+                    reportName: 'Cucumber Multi-Job Dashboard'
                 ])
             }
         }
+
     }
 }
