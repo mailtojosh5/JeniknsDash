@@ -12,45 +12,44 @@ def html = """
         color: #e2e8f0;
         margin: 0;
         padding: 40px 20px;
-        min-height: 100vh;
         text-align: center;
     }
     
     h2 {
-        font-size: 2.6rem;
-        margin-bottom: 10px;
+        font-size: 2.8rem;
+        margin-bottom: 12px;
         background: linear-gradient(90deg, #67e8f9, #c084fc);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
     }
     
     h3 {
-        font-size: 1.6rem;
+        font-size: 1.7rem;
         color: #94a3b8;
         margin-bottom: 40px;
     }
     
-    .chart-container {
-        max-width: 620px;
+    .chart-wrapper {
+        max-width: 650px;
         margin: 0 auto 50px auto;
+        padding: 30px;
         background: #1e2937;
-        padding: 40px;
         border-radius: 24px;
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
     }
     
     table {
-        margin: 30px auto;
+        margin: 0 auto;
         border-collapse: collapse;
         background: #1e2937;
         border-radius: 12px;
         overflow: hidden;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-        font-size: 1.2rem;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+        font-size: 1.25rem;
     }
     
     th, td {
-        padding: 18px 30px;
+        padding: 20px 35px;
         border: 1px solid #334155;
     }
     
@@ -59,17 +58,13 @@ def html = """
         color: #67e8f9;
         font-weight: 600;
     }
-    
-    td {
-        font-weight: 500;
-    }
 </style>
 </head>
 <body>
 <h2>Cucumber Test Dashboard</h2>
 <h3>Pass Percentage: ${data.passPercent}%</h3>
 
-<div class="chart-container">
+<div class="chart-wrapper">
     <canvas id="chart"></canvas>
 </div>
 
@@ -89,11 +84,10 @@ def html = """
 </table>
 
 <script>
-// Safe number handling to prevent NaN
+// Safe parsing to fix NaN issue
 const passed = parseFloat("${data.passed}") || 0;
 const failed = parseFloat("${data.failed}") || 0;
 const skipped = parseFloat("${data.skipped}") || 0;
-const passPercent = parseFloat("${data.passPercent}") || 0;
 
 new Chart(document.getElementById("chart"), {
     type: "pie",
@@ -103,15 +97,15 @@ new Chart(document.getElementById("chart"), {
             data: [passed, failed, skipped],
             backgroundColor: ["#22c55e", "#ef4444", "#64748b"],
             borderColor: "#1e2937",
-            borderWidth: 8,
-            hoverOffset: 35
+            borderWidth: 10,
+            hoverOffset: 40
         }]
     },
     options: {
         responsive: true,
         maintainAspectRatio: true,
         animation: {
-            duration: 2200,
+            duration: 2500,
             easing: "easeOutBounce",
             animateRotate: true,
             animateScale: true
@@ -122,22 +116,19 @@ new Chart(document.getElementById("chart"), {
                 labels: {
                     color: '#e2e8f0',
                     font: {
-                        size: 16,
+                        size: 17,
                         weight: '600'
                     },
-                    padding: 25,
-                    usePointStyle: true,
-                    boxWidth: 14
+                    padding: 30,
+                    boxWidth: 18
                 }
             },
             tooltip: {
                 backgroundColor: '#1e2937',
-                titleColor: '#f1f5f9',
+                titleColor: '#f8fafc',
                 bodyColor: '#e2e8f0',
-                padding: 16,
-                cornerRadius: 12,
-                displayColors: true,
-                boxPadding: 8
+                padding: 18,
+                cornerRadius: 12
             }
         }
     }
