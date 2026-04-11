@@ -2,89 +2,160 @@ pipeline {
     agent any
 
     stages {
+
+        stage('Copy Cucumber Reports From Jobs') {
+            steps {
+
+                script {
+
+                    jobs = [
+                        "API-Tests",
+                        "UI-Tests",
+                        "Regression-Tests"
+                    ]
+
+                    for (j in jobs) {
+
+                        echo "Copying cucumber report from ${j}"
+
+                        copyArtifacts(
+                            projectName: j,
+                            selector: lastSuccessful(),
+                            filter: "**/cucumber.json",
+                            target: "reports/${j}",
+                            flatten: true,
+                            optional: true
+                        )
+                    }
+                }
+
+            }
+        }
+
+        stage('Parse Cucumber Reports') {
+            steps {
+                script {
+
+                    def passed = 0
+                    def failed = 0
+                    def skipped = 0
+
+                    def files = findFiles(glob: 'reports/**/cucumber.json')
+
+                    echo "Found ${files.size()} cucumber reports"
+
+                    files.each { file ->
+
+                        def json = readJSON file: file.path
+
+                        json.each { feature ->
+
+                            feature.elements?.each { scenario ->
+
+                                scenario.steps?.each { step ->
+
+                                    def status = step.result?.status ?: "skipped"
+
+                                    if(status == "passed") passed++
+                                    if(status == "failed") failed++
+                                    if(status == "skipped") skipped++
+                                }
+                            }
+                        }
+                    }
+
+                    total = passed + failed + skipped
+                    passPercent = total > 0 ? ((passed * 100) / total).round(2) : 0
+
+                    echo "Passed: ${passed}"
+                    echo "Failed: ${failed}"
+                    echo "Skipped: ${skipped}"
+                    echo "Pass %: ${passPercent}"
+
+                    writeFile file: "summary.json", text: groovy.json.JsonOutput.toJson([
+                        passed: passed,
+                        failed: failed,
+                        skipped: skipped,
+                        passPercent: passPercent
+                    ])
+                }
+            }
+        }
+
         stage('Generate Dashboard') {
             steps {
                 script {
-                    // 1. Read the existing report from the workspace 
-                    // (Ensure the report is in the current workspace or use a full path)
-                    def reportPath = "cucumber-report.html" 
-                    def rawHtml = ""
-                    
-                    if (fileExists(reportPath)) {
-                        rawHtml = readFile(reportPath).replaceAll("`", "'") // Escape backticks
-                    } else {
-                        rawHtml = "<html><body><span class='passed'>0</span><span class='failed'>0</span></body></html>"
-                    }
 
-                    // 2. Create the Dashboard HTML
-                    def dashboardContent = """
+                    def data = readJSON file: 'summary.json'
+
+                    def html = """
 <html>
 <head>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        body { font-family: sans-serif; text-align: center; }
-        #source-data { display: none; } /* Hide the original report data */
-        .chart-box { width: 350px; margin: auto; }
-    </style>
+<title>Cucumber Analytics Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
+
 <body>
-    <h2>Executive Test Summary</h2>
-    
-    <div id="source-data">
-        ${rawHtml}
-    </div>
 
-    <div class="chart-box">
-        <canvas id="myChart"></canvas>
-    </div>
-    <h3 id="stat-text">Loading Stats...</h3>
+<h2>Cucumber Test Dashboard</h2>
 
-    <script>
-        function initDashboard() {
-            // JavaScript searches the 'source-data' div for the numbers
-            // Adjust the '.passed' and '.failed' selectors to match your report's HTML tags
-            const p = parseInt(document.querySelector('#source-data .passed')?.innerText || 0);
-            const f = parseInt(document.querySelector('#source-data .failed')?.innerText || 0);
-            const s = parseInt(document.querySelector('#source-data .skipped')?.innerText || 0);
+<h3>Pass Percentage: ${data.passPercent}%</h3>
 
-            const total = p + f + s;
-            const rate = total > 0 ? ((p * 100) / total).toFixed(2) : 0;
+<canvas id="chart"></canvas>
 
-            document.getElementById('stat-text').innerText = 'Pass Rate: ' + rate + '% (' + total + ' total steps)';
+<script>
 
-            new Chart(document.getElementById('myChart'), {
-                type: 'pie',
-                data: {
-                    labels: ['Passed', 'Failed', 'Skipped'],
-                    datasets: [{
-                        data: [p, f, s],
-                        backgroundColor: ['#2ecc71', '#e74c3c', '#95a5a6']
-                    }]
-                }
-            });
-        }
+new Chart(document.getElementById("chart"), {
+type: "pie",
+data: {
+labels: ["Passed","Failed","Skipped"],
+datasets: [{
+data: [${data.passed},${data.failed},${data.skipped}],
+backgroundColor:["green","red","gray"]
+}]
+}
+});
 
-        window.onload = initDashboard;
-    </script>
+</script>
+
+<table border="1" style="margin-top:20px">
+
+<tr>
+<th>Passed</th>
+<th>Failed</th>
+<th>Skipped</th>
+<th>Pass %</th>
+</tr>
+
+<tr>
+<td>${data.passed}</td>
+<td>${data.failed}</td>
+<td>${data.skipped}</td>
+<td>${data.passPercent}%</td>
+</tr>
+
+</table>
+
 </body>
 </html>
 """
-                    writeFile file: 'dashboard.html', text: dashboardContent
+
+                    writeFile file: "dashboard.html", text: html
                 }
             }
         }
 
-        stage('Publish') {
+        stage('Publish Dashboard') {
             steps {
+
                 publishHTML([
-                    allowMissing: false,
-                    alwaysLinkToLastBuild: true,
-                    keepAll: true,
                     reportDir: '.',
                     reportFiles: 'dashboard.html',
-                    reportName: 'Executive Dashboard'
+                    reportName: 'Cucumber Test Dashboard'
                 ])
+
             }
         }
+
     }
 }
