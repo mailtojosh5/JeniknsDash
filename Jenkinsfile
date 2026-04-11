@@ -4,66 +4,42 @@ def html = """
 <title>Cucumber Analytics Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-    
     body {
-        font-family: 'Inter', system-ui, sans-serif;
-        background: linear-gradient(135deg, #0f172a 0%, #1e2937 100%);
+        background: #0f172a;
         color: #e2e8f0;
-        margin: 0;
-        padding: 40px 20px;
+        font-family: Arial, sans-serif;
         text-align: center;
-        min-height: 100vh;
+        padding: 40px;
+        margin: 0;
     }
-    
     h2 {
-        font-size: 2.8rem;
-        font-weight: 700;
-        margin-bottom: 12px;
-        background: linear-gradient(90deg, #67e8f9, #c084fc);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
+        color: #67e8f9;
+        font-size: 32px;
     }
-    
     h3 {
-        font-size: 1.75rem;
         color: #94a3b8;
-        margin-bottom: 40px;
-        font-weight: 500;
+        font-size: 24px;
     }
-    
     .chart-container {
-        max-width: 620px;
-        margin: 0 auto 50px auto;
-        padding: 35px;
+        width: 500px;
+        margin: 30px auto;
+        padding: 20px;
         background: #1e2937;
-        border-radius: 24px;
-        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+        border-radius: 16px;
     }
-    
     table {
-        margin: 0 auto;
+        margin: 30px auto;
         border-collapse: collapse;
         background: #1e2937;
-        border-radius: 12px;
-        overflow: hidden;
-        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
-        font-size: 1.25rem;
+        font-size: 18px;
     }
-    
     th, td {
-        padding: 20px 40px;
-        border: 1px solid #334155;
+        padding: 15px 30px;
+        border: 1px solid #475569;
     }
-    
     th {
         background: #334155;
         color: #67e8f9;
-        font-weight: 600;
-    }
-    
-    td {
-        font-weight: 500;
     }
 </style>
 </head>
@@ -72,7 +48,7 @@ def html = """
 <h3>Pass Percentage: ${data.passPercent}%</h3>
 
 <div class="chart-container">
-    <canvas id="chart"></canvas>
+    <canvas id="chart" width="450" height="450"></canvas>
 </div>
 
 <table border="1" style="margin-top:20px">
@@ -91,46 +67,29 @@ def html = """
 </table>
 
 <script>
-// Safe number handling - this fixes NaN in most cases
-const passed = Number("${data.passed}") || 0;
-const failed = Number("${data.failed}") || 0;
-const skipped = Number("${data.skipped}") || 0;
+    // Very safe number handling
+    var passed = ${data.passed};
+    var failed = ${data.failed};
+    var skipped = ${data.skipped};
 
-new Chart(document.getElementById("chart"), {
-    type: "pie",
-    data: {
-        labels: ["Passed","Failed","Skipped"],
-        datasets: [{
-            data: [passed, failed, skipped],
-            backgroundColor: ["#22c55e", "#ef4444", "#64748b"],
-            borderColor: "#1e2937",
-            borderWidth: 12,
-            hoverOffset: 40
-        }]
-    },
-    options: {
-        responsive: true,
-        animation: {
-            duration: 2200,
-            easing: "easeOutBounce"
+    new Chart(document.getElementById("chart"), {
+        type: "pie",
+        data: {
+            labels: ["Passed","Failed","Skipped"],
+            datasets: [{
+                data: [passed, failed, skipped],
+                backgroundColor: ["#4ade80", "#f87171", "#94a3b8"],
+                borderColor: "#1e2937",
+                borderWidth: 8
+            }]
         },
-        plugins: {
-            legend: {
-                position: 'bottom',
-                labels: {
-                    color: '#e2e8f0',
-                    font: { size: 16, weight: '600' },
-                    padding: 25
-                }
-            },
-            tooltip: {
-                backgroundColor: '#1e2937',
-                padding: 16,
-                cornerRadius: 10
+        options: {
+            animation: {
+                duration: 2000,
+                easing: "easeOutQuart"
             }
         }
-    }
-});
+    });
 </script>
 </body>
 </html>
