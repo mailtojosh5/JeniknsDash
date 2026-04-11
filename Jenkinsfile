@@ -3,14 +3,11 @@ pipeline {
 
     stages {
 
-        stage('Discover Cucumber Reports From Workspaces') {
+        stage('Scan Workspace for Cucumber JSON') {
             steps {
                 script {
 
                     workspaceRoot = "/opt/jenkins/workspace"
-
-                    sh "rm -rf reports"
-                    sh "mkdir -p reports"
 
                     def files = sh(
                         script: """
@@ -19,200 +16,183 @@ pipeline {
                         returnStdout: true
                     ).trim().split("\\n")
 
-                    echo "Found ${files.size()} cucumber reports"
+                    echo "Found ${files.size()} cucumber files"
 
-                    def index = 0
+                    // store directly (NO COPY)
+                    writeFile file: "fileList.txt", text: files.join("\n")
+                }
+            }
+        }
+
+        stage('Parse All Reports Directly') {
+            steps {
+                script {
+
+                    def files = readFile("fileList.txt").split("\n")
+
+                    def jobStats = [:]
 
                     files.each { file ->
 
                         if(file?.trim()) {
 
-                            echo "Copying ${file}"
+                            echo "Reading: ${file}"
 
-                            def jobName = file.tokenize("/")[4]   // workspace/jobName/...
+                            def jobName = file.tokenize("/")[-4] ?: "Unknown"
 
-                            sh "cp '${file}' reports/${jobName}_${index}.json"
+                            def json = []
 
-                            index++
-                        }
-                    }
+                            try {
+                                json = readJSON text: readFile(file)
+                            } catch(Exception e) {
+                                echo "Skipping invalid JSON: ${file}"
+                                return
+                            }
 
-                    sh "ls -R reports"
-                }
-            }
-        }
+                            if(!jobStats.containsKey(jobName)) {
+                                jobStats[jobName] = [
+                                    passed:0,
+                                    failed:0,
+                                    skipped:0
+                                ]
+                            }
 
-        stage('Parse Reports') {
-            steps {
-                script {
+                            json.each { feature ->
+                                feature.elements?.each { scenario ->
+                                    scenario.steps?.each { step ->
 
-                    def jobStats = [:]
+                                        def status = step.result?.status ?: "skipped"
 
-                    def files = findFiles(glob: 'reports/*.json')
-
-                    echo "Processing ${files.size()} cucumber reports"
-
-                    files.each { file ->
-
-                        def jobName = file.name.split("_")[0]
-
-                        if(!jobStats.containsKey(jobName)) {
-
-                            jobStats[jobName] = [
-                                passed:0,
-                                failed:0,
-                                skipped:0
-                            ]
-                        }
-
-                        def json = readJSON file: file.path
-
-                        json.each { feature ->
-
-                            feature.elements?.each { scenario ->
-
-                                scenario.steps?.each { step ->
-
-                                    def status = step.result?.status ?: "skipped"
-
-                                    if(status == "passed")
-                                        jobStats[jobName].passed++
-
-                                    if(status == "failed")
-                                        jobStats[jobName].failed++
-
-                                    if(status == "skipped")
-                                        jobStats[jobName].skipped++
+                                        if(status == "passed") jobStats[jobName].passed++
+                                        else if(status == "failed") jobStats[jobName].failed++
+                                        else jobStats[jobName].skipped++
+                                    }
                                 }
                             }
                         }
                     }
 
-                    def htmlCharts = ""
-                    def chartScripts = ""
-                    def chartIndex = 0
+                    writeFile file: "summary.json",
+                        text: groovy.json.JsonBuilder(jobStats).toPrettyString()
+                }
+            }
+        }
 
-                    jobStats.each { job, data ->
+        stage('Generate Dashboard') {
+            steps {
+                script {
 
-                        total = data.passed + data.failed + data.skipped
+                    def data = readJSON file: 'summary.json'
 
-                        passPercent = total > 0 ?
-                            (((data.passed * 100.0) / total) * 100 as int) / 100.0
+                    def cards = ""
+                    def scripts = ""
+                    def i = 0
+
+                    data.each { job, stats ->
+
+                        def total = stats.passed + stats.failed + stats.skipped
+
+                        def passPercent = total > 0 ?
+                            (((stats.passed * 100.0) / total) * 100 as int) / 100.0
                             : 0
 
-                        def chartId = "chart${chartIndex}"
+                        def id = "chart_${i}"
+                        def displayName = job.tokenize('/').last()
 
-                        htmlCharts += """
+                        cards += """
                         <div class="card">
-                            <h2>${job}</h2>
-                            <h3>Pass %: ${passPercent}%</h3>
-                            <canvas id="${chartId}"></canvas>
+                            <h2>${displayName}</h2>
+                            <div class="badge">Pass %: ${passPercent}</div>
 
-                            <table>
-                                <tr>
-                                    <th>Passed</th>
-                                    <th>Failed</th>
-                                    <th>Skipped</th>
-                                </tr>
-                                <tr>
-                                    <td>${data.passed}</td>
-                                    <td>${data.failed}</td>
-                                    <td>${data.skipped}</td>
-                                </tr>
-                            </table>
+                            <canvas id="${id}"></canvas>
+
+                            <div class="stats">
+                                Passed: ${stats.passed} |
+                                Failed: ${stats.failed} |
+                                Skipped: ${stats.skipped}
+                            </div>
                         </div>
                         """
 
-                        chartScripts += """
-                        new Chart(document.getElementById("${chartId}"), {
+                        scripts += """
+                        new Chart(document.getElementById("${id}"), {
                             type: "pie",
                             data: {
                                 labels: ["Passed","Failed","Skipped"],
                                 datasets: [{
-                                    data: [${data.passed},${data.failed},${data.skipped}],
-                                    backgroundColor:["#2ecc71","#e74c3c","#95a5a6"]
+                                    data: [${stats.passed},${stats.failed},${stats.skipped}],
+                                    backgroundColor: ["#2ecc71","#e74c3c","#95a5a6"]
                                 }]
                             }
                         });
                         """
 
-                        chartIndex++
+                        i++
                     }
 
                     def html = """
 <html>
-
 <head>
-
-<title>Jenkins Cucumber Analytics Dashboard</title>
-
+<title>Cucumber Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-
-body{
-font-family: Arial;
-background:#f4f6f8;
-padding:30px;
+body {
+    font-family: Arial;
+    background: #f4f6f8;
+    margin: 0;
+    padding: 20px;
 }
 
-h1{
-text-align:center;
-margin-bottom:40px;
+h1 {
+    text-align: center;
 }
 
-.grid{
-display:grid;
-grid-template-columns:repeat(auto-fit,minmax(400px,1fr));
-gap:30px;
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 20px;
 }
 
-.card{
-background:white;
-padding:25px;
-border-radius:10px;
-box-shadow:0 3px 10px rgba(0,0,0,0.1);
-text-align:center;
+.card {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    text-align: center;
 }
 
-table{
-margin:auto;
-margin-top:15px;
-border-collapse:collapse;
+.badge {
+    display: inline-block;
+    background: #2563eb;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 20px;
+    margin-bottom: 10px;
 }
 
-th,td{
-border:1px solid #ddd;
-padding:8px 14px;
+.stats {
+    margin-top: 10px;
+    font-size: 13px;
+    color: #555;
 }
-
-th{
-background:#2c3e50;
-color:white;
-}
-
 </style>
 
 </head>
 
 <body>
 
-<h1>Jenkins Cucumber Test Dashboard</h1>
+<h1>🚀 Zero-Copy Cucumber Dashboard</h1>
 
 <div class="grid">
-
-${htmlCharts}
-
+${cards}
 </div>
 
 <script>
-
-${chartScripts}
-
+${scripts}
 </script>
 
 </body>
-
 </html>
 """
 
@@ -223,15 +203,12 @@ ${chartScripts}
 
         stage('Publish Dashboard') {
             steps {
-
                 publishHTML([
                     reportDir: '.',
                     reportFiles: 'dashboard.html',
-                    reportName: 'Cucumber Test Dashboard'
+                    reportName: 'Cucumber Dashboard'
                 ])
-
             }
         }
-
     }
 }
