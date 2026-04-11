@@ -1,78 +1,65 @@
 pipeline {
-    agent any
+    agent { label 'built-in' } // IMPORTANT: Must run on the controller to see /opt/
 
     stages {
-        stage('Collect External Reports') {
+        stage('Scan ESMORG Workspace') {
             steps {
                 script {
-                    // List of jobs to pull reports from
-                    def jobs = ["API-Tests", "UI-Tests", "Regression-Tests"]
-
-                    for (j in jobs) {
-                        echo "Attempting to copy artifacts from ${j}"
-                        // Pulls any json file containing 'cucumber' from the target job
-                        copyArtifacts(
-                            projectName: j,
-                            selector: lastSuccessful(),
-                            filter: "**/cucumber*.json", 
-                            target: "reports/${j}",
-                            flatten: true,
-                            optional: true
-                        )
-                    }
-                }
-            }
-        }
-
-        stage('Analyze All Workspace Reports') {
-            steps {
-                script {
-                    def jobResults = []
+                    // 1. Define the base path to scan
+                    def scanPath = "/opt/app/jenkins/workspace/esmorg"
                     
-                    // Recursive search: Looks for any file containing 'cucumber' and '.json' 
-                    // inside the current workspace and all subdirectories (like reports/)
-                    def files = findFiles(glob: '**/cucumber*.json')
+                    echo "Scanning path: ${scanPath}"
 
-                    echo "Found ${files.length} JSON report(s) across workspace folders"
+                    // 2. Use Shell to find files and count statuses
+                    // We use -maxdepth to prevent scanning too deep if the folder is huge
+                    def rawData = sh(script: """
+                        if [ -d "${scanPath}" ]; then
+                            find ${scanPath} -maxdepth 4 -name "cucumber.json" | while read file; do
+                                # Get the name of the folder containing the json as the 'Job Name'
+                                jobName=\$(basename \$(dirname "\$file"))
+                                passed=\$(grep -o '"status":"passed"' "\$file" | wc -l)
+                                failed=\$(grep -o '"status":"failed"' "\$file" | wc -l)
+                                skipped=\$(grep -o '"status":"skipped"' "\$file" | wc -l)
+                                echo "\${jobName}|\${passed}|\${failed}|\${skipped}"
+                            done
+                        else
+                            echo "ERROR: Path ${scanPath} not found." >&2
+                            exit 1
+                        fi
+                    """, returnStdout: true).trim()
 
-                    files.each { file ->
-                        // Determine a friendly name for the job/folder
-                        def pathParts = file.path.split(/[\\\/]/)
-                        def displayName = pathParts.length > 1 ? pathParts[pathParts.length - 2] : "Root"
-
-                        // Read as raw text to avoid 'readJSON' static method permission errors
-                        def jsonContent = readFile(file.path)
-
-                        // High-performance count of status occurrences
-                        def passed = jsonContent.count('"status":"passed"')
-                        def failed = jsonContent.count('"status":"failed"')
-                        def skipped = jsonContent.count('"status":"skipped"')
-
-                        def total = passed + failed + skipped
-                        
-                        // Calculate percentage without restricted Math methods
-                        def passPercent = total > 0 ? 
-                            ((passed * 100.0) / total).toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP) 
-                            : 0
-
-                        jobResults << [
-                            name: displayName,
-                            passed: passed,
-                            failed: failed,
-                            skipped: skipped,
-                            passPercent: passPercent
-                        ]
-
-                        echo "Processed ${displayName}: P:${passed} F:${failed} S:${skipped} (${passPercent}%)"
+                    if (!rawData) {
+                        echo "No cucumber.json files found in ${scanPath}"
+                        return
                     }
 
-                    // Write internal summary for the dashboard generator
+                    // 3. Convert shell output to list
+                    def jobResults = []
+                    rawData.split("\n").each { line ->
+                        def parts = line.split("\\|")
+                        if (parts.length == 4) {
+                            def p = parts[1].toInteger()
+                            def f = parts[2].toInteger()
+                            def s = parts[3].toInteger()
+                            def total = p + f + s
+                            
+                            jobResults << [
+                                name: parts[0],
+                                passed: p,
+                                failed: f,
+                                skipped: s,
+                                passPercent: total > 0 ? ((p * 100) / total).toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP) : 0
+                            ]
+                        }
+                    }
+
+                    // 4. Save results for dashboard
                     writeJSON file: "summary.json", json: jobResults
                 }
             }
         }
 
-        stage('Generate Multi-Chart Dashboard') {
+        stage('Generate & Publish Dashboard') {
             steps {
                 script {
                     def data = readJSON file: 'summary.json'
@@ -80,26 +67,23 @@ pipeline {
 
                     data.each { job ->
                         chartsHtml += """
-                        <div style="display: inline-block; width: 30%; min-width: 320px; margin: 15px; border: 1px solid #ddd; padding: 10px; border-radius: 8px;">
-                            <h2 style="text-align:center; font-size: 1.2em;">${job.name}</h2>
-                            <p style="text-align:center;">Pass Rate: <b style="color: ${job.passPercent > 90 ? 'green' : 'orange'}">${job.passPercent}%</b></p>
+                        <div style="display: inline-block; width: 300px; margin: 15px; border: 1px solid #ccc; padding: 10px; border-radius: 5px; background: #fff;">
+                            <h2 style="text-align:center; font-size: 1.1em;">${job.name}</h2>
+                            <p style="text-align:center;">Pass Rate: <b>${job.passPercent}%</b></p>
                             <canvas id="chart_${job.name.replaceAll(/[^a-zA-Z0-9]/, '_')}"></canvas>
                             <script>
-                                (function() {
-                                    window.addEventListener('load', function() {
-                                        new Chart(document.getElementById("chart_${job.name.replaceAll(/[^a-zA-Z0-9]/, '_')}"), {
-                                            type: "pie",
-                                            data: {
-                                                labels: ["Passed","Failed","Skipped"],
-                                                datasets: [{
-                                                    data: [${job.passed}, ${job.failed}, ${job.skipped}],
-                                                    backgroundColor: ["#2ecc71","#e74c3c","#95a5a6"]
-                                                }]
-                                            },
-                                            options: { responsive: true, maintainAspectRatio: true }
-                                        });
+                                window.addEventListener('load', function() {
+                                    new Chart(document.getElementById("chart_${job.name.replaceAll(/[^a-zA-Z0-9]/, '_')}"), {
+                                        type: "pie",
+                                        data: {
+                                            labels: ["Passed","Failed","Skipped"],
+                                            datasets: [{
+                                                data: [${job.passed}, ${job.failed}, ${job.skipped}],
+                                                backgroundColor: ["#2ecc71","#e74c3c","#95a5a6"]
+                                            }]
+                                        }
                                     });
-                                })();
+                                });
                             </script>
                         </div>
                         """
@@ -108,17 +92,12 @@ pipeline {
                     def finalHtml = """
 <html>
 <head>
-    <title>Global Cucumber Analytics</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f9f9f9; padding: 20px; }
-        .container { display: flex; flex-wrap: wrap; justify-content: center; }
-        h1 { color: #333; text-align: center; }
-    </style>
+    <style>body { font-family: sans-serif; background: #f4f4f4; text-align: center; }</style>
 </head>
 <body>
-    <h1>🚀 Consolidated Cucumber Dashboard</h1>
-    <div class="container">
+    <h1>🚀 ESMORG Global Cucumber Analytics</h1>
+    <div style="display: flex; flex-wrap: wrap; justify-content: center;">
         ${chartsHtml}
     </div>
 </body>
@@ -126,18 +105,14 @@ pipeline {
 """
                     writeFile file: "dashboard.html", text: finalHtml
                 }
-            }
-        }
-
-        stage('Publish') {
-            steps {
+                
                 publishHTML([
                     allowMissing: false,
                     alwaysLinkToLastBuild: true,
                     keepAll: true,
                     reportDir: '.',
                     reportFiles: 'dashboard.html',
-                    reportName: 'Consolidated Dashboard'
+                    reportName: 'ESMORG Dashboard'
                 ])
             }
         }
