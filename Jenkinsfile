@@ -9,26 +9,29 @@ def html = """
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         
-        :root {
-            --bg: #0f172a;
-            --card: #1e2937;
-            --text: #e2e8f0;
-            --accent: #22d3ee;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-        
-        * { margin: 0; padding: 0; box-sizing: border-box; }
         
         body {
             font-family: 'Inter', system-ui, sans-serif;
             background: linear-gradient(135deg, #0f172a 0%, #1e2937 100%);
-            color: var(--text);
+            color: #e2e8f0;
             min-height: 100vh;
             padding: 40px 20px;
         }
         
-        .container { max-width: 1100px; margin: 0 auto; }
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
         
-        header { text-align: center; margin-bottom: 50px; }
+        header {
+            text-align: center;
+            margin-bottom: 50px;
+        }
         
         h1 {
             font-size: 2.8rem;
@@ -36,86 +39,153 @@ def html = """
             background: linear-gradient(90deg, #67e8f9, #c084fc);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            margin-bottom: 10px;
         }
         
-        .subtitle { font-size: 1.2rem; color: #94a3b8; }
-        
-        .progress-container {
-            width: 220px;
-            height: 220px;
-            margin: 30px auto;
-            position: relative;
-        }
-        
-        .progress-ring { transform: rotate(-90deg); }
-        
-        .progress-ring__circle {
-            transition: stroke-dashoffset 1.8s cubic-bezier(0.25, 0.1, 0.25, 1);
-        }
-        
-        .progress-text {
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-            font-size: 2.8rem;
-            font-weight: 700;
-        }
-        
-        .progress-text small {
-            display: block;
-            font-size: 1rem;
+        .subtitle {
+            font-size: 1.2rem;
             color: #94a3b8;
-            margin-top: 8px;
+            margin-top: 10px;
         }
         
+        /* Beautiful Cards */
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 24px;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 28px;
             margin-bottom: 50px;
         }
         
         .card {
-            background: var(--card);
-            border-radius: 20px;
-            padding: 30px 25px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            transition: all 0.4s ease;
+            background: rgba(30, 41, 59, 0.85);
+            backdrop-filter: blur(16px);
+            border-radius: 24px;
+            padding: 32px 28px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4),
+                        inset 0 2px 0 rgba(255,255,255,0.08);
+            border: 1px solid rgba(103, 232, 249, 0.15);
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            position: relative;
+            overflow: hidden;
         }
         
-        .card:hover { transform: translateY(-12px); }
+        .card:hover {
+            transform: translateY(-15px) scale(1.03);
+            box-shadow: 0 25px 50px rgba(103, 232, 249, 0.25),
+                        inset 0 2px 0 rgba(255,255,255,0.12);
+            border-color: rgba(103, 232, 249, 0.4);
+        }
+        
+        .card::before {
+            content: '';
+            position: absolute;
+            top: -100%;
+            left: -100%;
+            width: 40%;
+            height: 300%;
+            background: linear-gradient(
+                120deg,
+                transparent,
+                rgba(255,255,255,0.25),
+                transparent
+            );
+            transition: 0.7s;
+        }
+        
+        .card:hover::before {
+            top: -20%;
+            left: -20%;
+        }
+        
+        .card h3 {
+            font-size: 1.15rem;
+            font-weight: 600;
+            color: #94a3b8;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
         
         .value {
-            font-size: 3.2rem;
+            font-size: 3.6rem;
+            font-weight: 700;
+            line-height: 1;
+            margin-bottom: 8px;
+            transition: transform 0.4s ease;
+        }
+        
+        .card:hover .value {
+            transform: scale(1.08);
+        }
+        
+        .pass-card .value { color: #4ade80; text-shadow: 0 0 20px rgba(74, 222, 128, 0.4); }
+        .fail-card .value { color: #f87171; text-shadow: 0 0 20px rgba(248, 113, 113, 0.4); }
+        .skip-card .value { color: #cbd5e1; text-shadow: 0 0 15px rgba(203, 213, 225, 0.3); }
+        
+        /* Progress Circle */
+        .progress-container {
+            width: 230px;
+            height: 230px;
+            margin: 40px auto;
+            position: relative;
+        }
+        
+        .progress-ring {
+            transform: rotate(-90deg);
+        }
+        
+        .progress-ring__circle {
+            transition: stroke-dashoffset 2s cubic-bezier(0.25, 0.1, 0.25, 1);
+        }
+        
+        .progress-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            font-size: 2.9rem;
             font-weight: 700;
         }
         
-        .pass-card .value { color: #4ade80; }
-        .fail-card .value { color: #f87171; }
-        .skip-card .value { color: #94a3b8; }
+        .progress-text small {
+            font-size: 1.05rem;
+            color: #94a3b8;
+            margin-top: 6px;
+            display: block;
+        }
         
         .chart-container {
-            background: var(--card);
-            border-radius: 20px;
+            background: rgba(30, 41, 59, 0.9);
+            border-radius: 24px;
             padding: 35px;
             margin-bottom: 40px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
         }
         
         table {
             width: 100%;
             border-collapse: collapse;
-            background: var(--card);
+            background: rgba(30, 41, 59, 0.9);
             border-radius: 16px;
             overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
         }
         
-        th, td { padding: 22px; text-align: center; font-size: 1.15rem; }
-        th { background: #334155; color: #67e8f9; }
+        th, td {
+            padding: 22px 25px;
+            text-align: center;
+            font-size: 1.2rem;
+        }
+        
+        th {
+            background: #334155;
+            color: #67e8f9;
+        }
+        
         .passed { color: #4ade80; }
         .failed { color: #f87171; }
-        .skipped { color: #94a3b8; }
+        .skipped { color: #cbd5e1; }
     </style>
 </head>
 <body>
@@ -125,39 +195,46 @@ def html = """
             <p class="subtitle">Automated Test Results • Real-time Analytics</p>
         </header>
 
+        <!-- Pass Percentage Circle -->
         <div class="progress-container">
-            <svg class="progress-ring" width="220" height="220">
-                <circle cx="110" cy="110" r="98" fill="none" stroke="#334155" stroke-width="22"/>
-                <circle class="progress-ring__circle" cx="110" cy="110" r="98" fill="none" 
-                        stroke="#22d3ee" stroke-width="22" stroke-dasharray="615" stroke-dashoffset="615"
+            <svg class="progress-ring" width="230" height="230">
+                <circle cx="115" cy="115" r="102" fill="none" stroke="#334155" stroke-width="24"/>
+                <circle class="progress-ring__circle" cx="115" cy="115" r="102" fill="none" 
+                        stroke="#22d3ee" stroke-width="24" 
+                        stroke-dasharray="641" stroke-dashoffset="641"
                         stroke-linecap="round"/>
             </svg>
             <div class="progress-text">
-                <span id="passPercentBig">0</span><span style="font-size:1.8rem;">%</span>
-                <small>Pass Rate</small>
+                <span id="passPercentBig">0</span><span style="font-size:1.9rem;">%</span>
+                <small>Overall Pass Rate</small>
             </div>
         </div>
 
+        <!-- Beautiful Cards -->
         <div class="stats-grid">
             <div class="card pass-card">
                 <h3>✅ Tests Passed</h3>
                 <div id="passedCount" class="value">0</div>
             </div>
+            
             <div class="card fail-card">
                 <h3>❌ Tests Failed</h3>
                 <div id="failedCount" class="value">0</div>
             </div>
+            
             <div class="card skip-card">
                 <h3>⏭️ Tests Skipped</h3>
                 <div id="skippedCount" class="value">0</div>
             </div>
         </div>
 
+        <!-- Chart -->
         <div class="chart-container">
-            <h2 style="margin-bottom: 25px; text-align: center;">Test Status Distribution</h2>
+            <h2 style="margin-bottom: 25px; text-align: center; color: #e2e8f0;">Test Status Distribution</h2>
             <canvas id="chart" height="280"></canvas>
         </div>
 
+        <!-- Table -->
         <table>
             <thead>
                 <tr>
@@ -179,52 +256,53 @@ def html = """
     </div>
 
     <script>
-        // Safe number parsing to prevent NaN
+        // Safe number conversion to fix NaN
         function safeNum(val) {
             const n = parseFloat(val);
             return isNaN(n) ? 0 : n;
         }
 
-        const passed     = safeNum("${data.passed}");
-        const failed     = safeNum("${data.failed}");
-        const skipped    = safeNum("${data.skipped}");
+        const passed      = safeNum("${data.passed}");
+        const failed      = safeNum("${data.failed}");
+        const skipped     = safeNum("${data.skipped}");
         const passPercent = safeNum("${data.passPercent}");
 
-        // Animate counters
-        function animateValue(id, start, end, duration) {
+        // Counter animation
+        function animateValue(id, start, end, duration = 1600) {
             const obj = document.getElementById(id);
-            const range = end - start;
-            const startTime = Date.now();
+            let startTime = null;
             
-            function update() {
-                const now = Date.now();
-                const progress = Math.min((now - startTime) / duration, 1);
-                const value = Math.floor(progress * range + start);
+            function step(timestamp) {
+                if (!startTime) startTime = timestamp;
+                const progress = Math.min((timestamp - startTime) / duration, 1);
+                const value = Math.floor(progress * (end - start) + start);
                 obj.textContent = value;
-                if (progress < 1) requestAnimationFrame(update);
+                if (progress < 1) {
+                    window.requestAnimationFrame(step);
+                }
             }
-            update();
+            window.requestAnimationFrame(step);
         }
 
-        // Animate circular progress
+        // Progress ring animation
         function animateProgress(percent) {
             const circle = document.querySelector('.progress-ring__circle');
-            const circumference = 615;
+            const circumference = 641;
             const offset = circumference * (1 - percent / 100);
             circle.style.strokeDashoffset = offset;
         }
 
         window.onload = function() {
-            // Counters
-            animateValue('passedCount', 0, passed, 1600);
-            animateValue('failedCount', 0, failed, 1600);
-            animateValue('skippedCount', 0, skipped, 1600);
-            animateValue('passPercentBig', 0, passPercent, 1600);
+            animateValue('passedCount', 0, passed);
+            animateValue('failedCount', 0, failed);
+            animateValue('skippedCount', 0, skipped);
+            animateValue('passPercentBig', 0, passPercent);
 
-            // Progress ring
-            setTimeout(() => animateProgress(passPercent), 400);
+            setTimeout(() => {
+                animateProgress(passPercent);
+            }, 500);
 
-            // Chart
+            // Pie Chart
             new Chart(document.getElementById('chart'), {
                 type: 'pie',
                 data: {
@@ -234,16 +312,16 @@ def html = """
                         backgroundColor: ['#4ade80', '#f87171', '#64748b'],
                         borderColor: '#1e2937',
                         borderWidth: 6,
-                        hoverOffset: 30
+                        hoverOffset: 25
                     }]
                 },
                 options: {
                     responsive: true,
-                    animation: { duration: 1800, easing: 'easeOutQuart' },
+                    animation: { duration: 1800 },
                     plugins: {
                         legend: {
                             position: 'bottom',
-                            labels: { color: '#e2e8f0', font: { size: 15 }, padding: 25 }
+                            labels: { color: '#e2e8f0', font: { size: 15 }, padding: 20 }
                         }
                     }
                 }
