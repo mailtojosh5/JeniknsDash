@@ -1,50 +1,44 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>My App</title>
-    <style>
-        body, html { margin: 0; padding: 0; height: 100%; width: 100%; }
-        #iframeContainer, iframe { width: 100%; height: 100vh; border: none; display: block; }
-    </style>
+    <title>My App Portal</title>
 </head>
 <body>
+    <div id="iframeContainer">
+        <h2 id="status">Connecting to Authentication...</h2>
+    </div>
 
-<div id="iframeContainer"></div>
-
-<script>
-(function() {
-    // We check BOTH the query string (?) and the hash (#) 
-    // because Okta often returns data in the hash.
-    const currentUrl = window.location.href;
-    console.log("Checking URL for auth:", currentUrl);
-
-    if (currentUrl.includes("session_hint=AUTHENTICATED")) {
-        console.log("✅ Welcome back! Loading the app...");
-        loadIframe();
-    } 
-    else {
-        console.log("❌ No session found. Sending to Okta...");
+    <script>
+    (function() {
+        const url = window.location.href;
         
-        // Ensure the redirect back includes the 'AUTHENTICATED' hint
-        const callbackUrl = window.location.origin + window.location.pathname + "?session_hint=AUTHENTICATED";
-        
-        // YOUR_OKTA_URL must be the one that accepts a redirect_uri parameter
-        const oktaUrl = "https://your-okta-login-url" + "?redirect_uri=" + encodeURIComponent(callbackUrl);
+        // Target App and Okta Config
+        const GITHUB_URL = window.location.origin + window.location.pathname;
+        const OKTA_BASE = "https://your-org.okta.com"; 
+        const JENKINS_URL = "https://your-jenkins-url.com";
 
-        window.location.href = oktaUrl;
-    }
+        // STEP 4: Detect if we have returned to GitHub from Okta
+        if (url.includes("session_hint=AUTHENTICATED") || url.includes("check=true")) {
+            document.getElementById("status").innerText = "Loading App...";
+            loadIframe();
+        } 
+        // STEP 1: If we are just starting, go to Okta
+        else {
+            // We append the 'redirect_uri' to the Okta URL. 
+            // This is the instruction that tells Okta to return to GitHub after login.
+            const returnTo = encodeURIComponent(GITHUB_URL + "?session_hint=AUTHENTICATED");
+            
+            // Note: This URL format depends on your specific Okta App type
+            const oktaUrl = `${OKTA_BASE}/home/bookmark/0oa.../123?redirect_uri=${returnTo}`;
 
-    function loadIframe() {
-        const container = document.getElementById("iframeContainer");
-        const iframe = document.createElement("iframe");
-        
-        // REMINDER: This site must allow iframing (No X-Frame-Options: Deny)
-        iframe.src = "https://your-app-url.com"; 
-        
-        container.appendChild(iframe);
-    }
-})(); // This (function() { ... })(); pattern makes it run immediately on load
-</script>
+            window.location.href = oktaUrl;
+        }
 
+        function loadIframe() {
+            const container = document.getElementById("iframeContainer");
+            container.innerHTML = `<iframe src="${JENKINS_URL}" style="position:fixed; top:0; left:0; width:100%; height:100%; border:none;"></iframe>`;
+        }
+    })();
+    </script>
 </body>
 </html>
