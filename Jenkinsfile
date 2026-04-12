@@ -1,308 +1,261 @@
-pipeline {
-    agent any
-
-    stages {
-        stage('Copy Cucumber Reports From Jobs') {
-            steps {
-                script {
-                    def jobs = ["API-Tests", "UI-Tests", "Regression-Tests"]
-                    
-                    jobs.each { jobName ->
-                        echo "🔄 Copying cucumber report from ${jobName}..."
-                        copyArtifacts(
-                            projectName: jobName,
-                            selector: lastSuccessful(),           // Fixed: it's a function call
-                            filter: "**/cucumber.json",
-                            target: "reports/${jobName}",
-                            flatten: true,
-                            optional: true,
-                            fingerprintArtifacts: true
-                        )
-                    }
-                }
-            }
-        }
-
-        stage('Parse Cucumber Reports') {
-            steps {
-                script {
-                    def passed = 0
-                    def failed = 0
-                    def skipped = 0
-                    def totalSteps = 0
-
-                    def files = findFiles(glob: 'reports/**/cucumber.json')
-                    echo "📊 Found ${files.size()} cucumber report files"
-
-                    files.each { file ->
-                        echo "Processing: ${file.path}"
-                        def json = readJSON(file: file.path)
-
-                        // Cucumber JSON can be array of features or wrapped
-                        def features = json instanceof List ? json : [json]
-
-                        features.each { feature ->
-                            feature.elements?.each { scenario ->
-                                scenario.steps?.each { step ->
-                                    def status = step.result?.status?.toLowerCase() ?: "skipped"
-                                    totalSteps++
-
-                                    switch(status) {
-                                        case "passed":
-                                            passed++
-                                            break
-                                        case "failed":
-                                            failed++
-                                            break
-                                        case "skipped":
-                                        case "undefined":
-                                            skipped++
-                                            break
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    def total = passed + failed + skipped
-                    def passPercent = total > 0 ? Math.round((passed * 10000.0) / total) / 100 : 0.0
-
-                    echo "✅ Passed: ${passed}"
-                    echo "❌ Failed: ${failed}"
-                    echo "⏭️  Skipped: ${skipped}"
-                    echo "📈 Pass Rate: ${passPercent}%"
-
-                    // Save summary
-                    def summary = [
-                        passed     : passed,
-                        failed     : failed,
-                        skipped    : skipped,
-                        total      : total,
-                        passPercent: passPercent,
-                        timestamp  : new Date().toString()
-                    ]
-
-                    writeJSON file: 'summary.json', json: summary, pretty: 4
-                }
-            }
-        }
-
-        stage('Generate Dashboard') {
-            steps {
-                script {
-                    def data = readJSON(file: 'summary.json')
-
-                    def html = """
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cucumber Test Dashboard</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <style>
-        :root {
-            --primary: #4a9eff;
-            --success: #22c55e;
-            --danger: #ef4444;
-            --warning: #eab308;
-        }
-        body {
-            font-family: 'Segoe UI', system-ui, sans-serif;
-            background: linear-gradient(135deg, #0f172a, #1e2937);
-            color: #e2e8f0;
-            margin: 0;
-            padding: 20px;
-            line-height: 1.6;
-        }
-        .container {
-            max-width: 1100px;
-            margin: 0 auto;
-        }
-        h1 {
-            text-align: center;
-            color: white;
-            margin-bottom: 10px;
-            font-size: 2.8rem;
-        }
-        .subtitle {
-            text-align: center;
-            color: #94a3b8;
-            font-size: 1.2rem;
-            margin-bottom: 40px;
-        }
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 20px;
-            margin-bottom: 40px;
-        }
-        .card {
-            background: rgba(255,255,255,0.08);
-            border-radius: 16px;
-            padding: 24px;
-            text-align: center;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        .card h3 {
-            margin: 0 0 8px 0;
-            font-size: 1.1rem;
-            color: #94a3b8;
-        }
-        .big-number {
-            font-size: 2.8rem;
-            font-weight: 700;
-        }
-        .chart-container {
-            background: rgba(255,255,255,0.06);
-            border-radius: 16px;
-            padding: 30px;
-            margin-bottom: 40px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            background: rgba(255,255,255,0.06);
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-        }
-        th, td {
-            padding: 18px;
-            text-align: center;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
-        th {
-            background: rgba(74, 158, 255, 0.15);
-            color: #60a5fa;
-        }
-        .pass { color: var(--success); font-weight: bold; }
-        .fail { color: var(--danger); font-weight: bold; }
-        footer {
-            text-align: center;
-            margin-top: 50px;
-            color: #64748b;
-            font-size: 0.9rem;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>🥒 Cucumber Test Analytics</h1>
-        <p class="subtitle">Automated Test Results Dashboard • ${data.timestamp}</p>
-
-        <div class="stats">
-            <div class="card">
-                <h3>Passed</h3>
-                <div class="big-number pass">${data.passed}</div>
-            </div>
-            <div class="card">
-                <h3>Failed</h3>
-                <div class="big-number fail">${data.failed}</div>
-            </div>
-            <div class="card">
-                <h3>Skipped</h3>
-                <div class="big-number">${data.skipped}</div>
-            </div>
-            <div class="card">
-                <h3>Pass Rate</h3>
-                <div class="big-number" style="color: ${data.passPercent > 85 ? '#22c55e' : data.passPercent > 70 ? '#eab308' : '#ef4444'}">
-                    ${data.passPercent}%
-                </div>
-            </div>
-        </div>
-
-        <div class="chart-container">
-            <canvas id="pieChart" height="120"></canvas>
-        </div>
-
-        <table>
-            <tr>
-                <th>Status</th>
-                <th>Count</th>
-                <th>Percentage</th>
-            </tr>
-            <tr>
-                <td class="pass">✅ Passed</td>
-                <td>${data.passed}</td>
-                <td>${data.passPercent}%</td>
-            </tr>
-            <tr>
-                <td class="fail">❌ Failed</td>
-                <td>${data.failed}</td>
-                <td>${data.total > 0 ? ((data.failed * 100.0 / data.total).round(2)) : 0}%</td>
-            </tr>
-            <tr>
-                <td>⏭️ Skipped</td>
-                <td>${data.skipped}</td>
-                <td>${data.total > 0 ? ((data.skipped * 100.0 / data.total).round(2)) : 0}%</td>
-            </tr>
-            <tr style="font-weight:bold; background:rgba(255,255,255,0.1);">
-                <td>Total Steps</td>
-                <td colspan="2">${data.total}</td>
-            </tr>
-        </table>
-    </div>
-
-    <footer>
-        Generated by Jenkins Pipeline • ${new Date().format("yyyy-MM-dd HH:mm")}
-    </footer>
-
-    <script>
-        const ctx = document.getElementById('pieChart');
-
-        new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: ['Passed', 'Failed', 'Skipped'],
-                datasets: [{
-                    data: [${data.passed}, ${data.failed}, ${data.skipped}],
-                    backgroundColor: ['#22c55e', '#ef4444', '#64748b'],
-                    borderColor: '#1e2937',
-                    borderWidth: 4,
-                    hoverOffset: 20
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: { color: '#e2e8f0', padding: 20, font: {size: 15} }
-                    },
-                    tooltip: {
-                        backgroundColor: 'rgba(15,23,42,0.95)',
-                        titleFont: {size: 16},
-                        bodyFont: {size: 15}
-                    }
-                }
-            }
-        });
-    </script>
-</body>
-</html>
-"""
-                    writeFile file: 'dashboard.html', text: html
-                }
-            }
-        }
-
-        stage('Publish Dashboard') {
-            steps {
-                publishHTML([
-                    allowMissing: false,
-                    alwaysLinkToLastBuild: true,
-                    keepAll: true,
-                    reportDir: '.',
-                    reportFiles: 'dashboard.html',
-                    reportName: 'Cucumber Test Dashboard',
-                    reportTitles: 'Cucumber Analytics'
-                ])
-            }
-        }
+ <style>
+    :root {
+      --primary: #4361ee;
+      --success: #4cc9f0;
+      --danger: #f72585;
+      --warning: #f8961e;
+      --dark: #212529;
+      --light: #f8f9fa;
+      --card-bg: #ffffff;
+      --header-bg: linear-gradient(135deg, #4361ee 0%, #3a0ca3 100%);
+      --transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
-}
+    
+    body {
+      font-family: 'Poppins', sans-serif;
+      background-color: #f5f7fa;
+      color: #495057;
+      min-height: 100vh;
+    }
+    
+    /* Service Card - Enhanced with 3D effects */
+    .service-card {
+      background: var(--card-bg);
+      border-radius: 16px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+      transition: var(--transition);
+      border: none;
+      position: relative;
+      overflow: hidden;
+      transform-style: preserve-3d;
+      perspective: 1000px;
+      will-change: transform;
+      z-index: 1;
+    }
+    
+    .service-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--success), var(--primary));
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.6s cubic-bezier(0.65, 0, 0.35, 1);
+      z-index: -1;
+    }
+    
+    .service-card:hover {
+      transform: translateY(-8px) rotateX(5deg) rotateY(2deg);
+      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+    }
+    
+    .service-card:hover::before {
+      transform: scaleX(1);
+    }
+    
+    /* Status-specific styling */
+    .service-card.success {
+      --card-accent: var(--success);
+    }
+    
+    .service-card.warning {
+      --card-accent: var(--warning);
+    }
+    
+    .service-card.error {
+      --card-accent: var(--danger);
+    }
+    
+    /* Card glow effect */
+    .service-card::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      border-radius: inherit;
+      box-shadow: 0 0 20px 0px var(--card-accent);
+      opacity: 0;
+      transition: opacity 0.4s ease;
+      z-index: -1;
+    }
+    
+    .service-card:hover::after {
+      opacity: 0.3;
+    }
+    
+    /* Floating animation for important cards */
+    @keyframes float {
+      0% { transform: translateY(0px); }
+      50% { transform: translateY(-10px); }
+      100% { transform: translateY(0px); }
+    }
+    
+    .service-card.important {
+      animation: float 4s ease-in-out infinite;
+    }
+    
+    /* Status indicator with animation */
+    .status-indicator {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-right: 0.5rem;
+      position: relative;
+    }
+    
+    .status-indicator::before {
+      content: '';
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background: inherit;
+      animation: pulse 2s infinite;
+      opacity: 0.7;
+    }
+    
+    .status-indicator.success {
+      background: var(--success);
+      box-shadow: 0 0 15px rgba(76, 201, 240, 0.7);
+    }
+    
+    .status-indicator.warning {
+      background: var(--warning);
+      box-shadow: 0 0 15px rgba(248, 150, 30, 0.7);
+    }
+    
+    .status-indicator.error {
+      background: var(--danger);
+      box-shadow: 0 0 15px rgba(247, 37, 133, 0.7);
+    }
+    
+    @keyframes pulse {
+      0% { transform: scale(1); opacity: 0.7; }
+      70% { transform: scale(2.5); opacity: 0; }
+      100% { transform: scale(1); opacity: 0; }
+    }
+    
+    /* Percentage display with gradient text */
+    .percentage {
+      font-size: 2.8rem;
+      font-weight: 700;
+      margin: 1rem 0;
+      line-height: 1;
+      background: linear-gradient(135deg, var(--card-accent), #4361ee);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      position: relative;
+      display: inline-block;
+    }
+    
+    /* Animated underline effect */
+    .percentage::after {
+      content: '';
+      position: absolute;
+      bottom: -5px;
+      left: 0;
+      width: 100%;
+      height: 3px;
+      background: linear-gradient(90deg, var(--card-accent), transparent);
+      transform: scaleX(0);
+      transform-origin: right;
+      transition: transform 0.6s cubic-bezier(0.65, 0, 0.35, 1);
+    }
+    
+    .service-card:hover .percentage::after {
+      transform: scaleX(1);
+      transform-origin: left;
+    }
+    
+    /* Progress bar with animation */
+    .progress-container {
+      height: 8px;
+      background: #e9ecef;
+      border-radius: 4px;
+      margin: 1.5rem 0;
+      overflow: hidden;
+      position: relative;
+    }
+    
+    .progress-container::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(90deg, 
+        rgba(255,255,255,0) 0%, 
+        rgba(255,255,255,0.8) 50%, 
+        rgba(255,255,255,0) 100%);
+      animation: shine 2s infinite;
+    }
+    
+    .progress-bar {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 1s cubic-bezier(0.65, 0, 0.35, 1);
+      position: relative;
+      z-index: 1;
+    }
+    
+    @keyframes shine {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+    
+    /* Date display styles */
+    .date-display {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 0.5rem;
+      font-size: 0.8rem;
+      color: #6c757d;
+    }
+    
+    .date-item {
+      display: flex;
+      align-items: center;
+    }
+    
+    .date-item i {
+      margin-right: 0.3rem;
+      font-size: 0.9rem;
+    }
+    
+    /* Card entry animation */
+    @keyframes cardEntrance {
+      from {
+        opacity: 0;
+        transform: translateY(50px) scale(0.9);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+      .service-card {
+        padding: 1.25rem;
+      }
+      
+      .percentage {
+        font-size: 2.2rem;
+      }
+      
+      .date-display {
+        flex-direction: column;
+        gap: 0.3rem;
+      }
+    }
+  </style>
