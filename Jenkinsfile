@@ -1,44 +1,49 @@
 <!DOCTYPE html>
 <html>
+<head>
+    <title>My App</title>
+    <style>
+        body, html { margin: 0; padding: 0; height: 100%; width: 100%; }
+        #iframeContainer, iframe { width: 100%; height: 100vh; border: none; display: block; }
+    </style>
+</head>
 <body>
 
 <div id="iframeContainer"></div>
 
 <script>
-function init() {
-  const url = window.location.href;
+(function() {
+    // We check BOTH the query string (?) and the hash (#) 
+    // because Okta often returns data in the hash.
+    const currentUrl = window.location.href;
+    console.log("Checking URL for auth:", currentUrl);
 
-  console.log("Loaded URL:", url);
+    if (currentUrl.includes("session_hint=AUTHENTICATED")) {
+        console.log("✅ Welcome back! Loading the app...");
+        loadIframe();
+    } 
+    else {
+        console.log("❌ No session found. Sending to Okta...");
+        
+        // Ensure the redirect back includes the 'AUTHENTICATED' hint
+        const callbackUrl = window.location.origin + window.location.pathname + "?session_hint=AUTHENTICATED";
+        
+        // YOUR_OKTA_URL must be the one that accepts a redirect_uri parameter
+        const oktaUrl = "https://your-okta-login-url" + "?redirect_uri=" + encodeURIComponent(callbackUrl);
 
-  // STEP 1: After Okta redirects back here
-  if (url.includes("AUTHENTICATED")) {
-    console.log("✅ Authenticated → loading iframe");
-    loadIframe();
-    return;
-  }
+        window.location.href = oktaUrl;
+    }
 
-  // STEP 2: Not authenticated → redirect to Okta
-  console.log("❌ Not authenticated → going to Okta");
-
-  const redirectBack =
-    window.location.origin + "?session_hint=AUTHENTICATED";
-
-  const oktaUrl =
-    "OKTA_LOGIN_URL?redirect_uri=" + encodeURIComponent(redirectBack);
-
-  window.location.href = oktaUrl;
-}
-
-function loadIframe() {
-  const iframe = document.createElement("iframe");
-  iframe.src = "https://your-jenkins-url";
-  iframe.width = "100%";
-  iframe.height = "800px";
-
-  document.getElementById("iframeContainer").appendChild(iframe);
-}
-
-init();
+    function loadIframe() {
+        const container = document.getElementById("iframeContainer");
+        const iframe = document.createElement("iframe");
+        
+        // REMINDER: This site must allow iframing (No X-Frame-Options: Deny)
+        iframe.src = "https://your-app-url.com"; 
+        
+        container.appendChild(iframe);
+    }
+})(); // This (function() { ... })(); pattern makes it run immediately on load
 </script>
 
 </body>
