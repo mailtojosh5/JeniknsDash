@@ -5,25 +5,37 @@
 <div id="iframeContainer"></div>
 
 <script>
-function loadFrame() {
+function init() {
+  const url = window.location.href;
+
+  console.log("Loaded URL:", url);
+
+  // STEP 1: After Okta redirects back here
+  if (url.includes("AUTHENTICATED")) {
+    console.log("✅ Authenticated → loading iframe");
+    loadIframe();
+    return;
+  }
+
+  // STEP 2: Not authenticated → redirect to Okta
+  console.log("❌ Not authenticated → going to Okta");
+
+  const redirectBack =
+    window.location.origin + "?session_hint=AUTHENTICATED";
+
+  const oktaUrl =
+    "OKTA_LOGIN_URL?redirect_uri=" + encodeURIComponent(redirectBack);
+
+  window.location.href = oktaUrl;
+}
+
+function loadIframe() {
   const iframe = document.createElement("iframe");
   iframe.src = "https://your-jenkins-url";
   iframe.width = "100%";
   iframe.height = "800px";
+
   document.getElementById("iframeContainer").appendChild(iframe);
-}
-
-function init() {
-  const url = window.location.href;
-
-  // If returned from Okta
-  if (url.includes("session_hint=AUTHENTICATED")) {
-    loadFrame();
-    return;
-  }
-
-  // Otherwise go to Okta
-  window.location.href = "OKTA_LOGIN_URL";
 }
 
 init();
