@@ -5,35 +5,41 @@
 <div id="iframeContainer"></div>
 
 <script>
-  async function init() {
-    const params = new URLSearchParams(window.location.search);
-    const sessionHint = params.get("session_hint");
+function checkAuthLoop() {
+  const url = window.location.href;
 
-    if (sessionHint === "AUTHENTICATED") {
-      loadIframe();
-    } else {
-      // Redirect to Okta login and STOP execution
-      window.location.href = "YOUR_OKTA_LOGIN_URL";
-      return;
-    }
+  console.log("Checking URL:", url);
+
+  if (url.includes("session_hint=AUTHENTICATED")) {
+    console.log("✅ Authenticated → loading iframe");
+    loadIframe();
+    return;
   }
 
-  function loadIframe() {
-    const container = document.getElementById("iframeContainer");
+  console.log("❌ Not authenticated yet... waiting");
 
-    // Prevent duplicate iframes
-    if (container.querySelector("iframe")) return;
+  // Safe loop (checks every 1 second)
+  setTimeout(checkAuthLoop, 1000);
+}
 
-    const iframe = document.createElement("iframe");
-    iframe.src = "https://your-jenkins-url"; // use HTTPS
-    iframe.width = "100%";
-    iframe.height = "800px";
-    iframe.style.border = "none";
+function loadIframe() {
+  const container = document.getElementById("iframeContainer");
 
-    container.appendChild(iframe);
-  }
+  // prevent duplicate iframe
+  if (container.querySelector("iframe")) return;
 
-  init();
+  const iframe = document.createElement("iframe");
+
+  iframe.src = "https://your-jenkins-url";
+  iframe.width = "100%";
+  iframe.height = "800px";
+  iframe.style.border = "none";
+
+  container.appendChild(iframe);
+}
+
+// start loop
+checkAuthLoop();
 </script>
 
 </body>
