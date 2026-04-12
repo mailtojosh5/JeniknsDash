@@ -1,33 +1,44 @@
 <!DOCTYPE html>
 <html>
+<head>
+  <title>SSO Loader</title>
+</head>
+
 <body>
 
-<div id="iframeContainer"></div>
+<div id="app">Loading...</div>
 
 <script>
-  async function init() {
-   
-    const isAuthenticated = sessionStorage.getItem("isAuthenticated");
+  const OKTA_LOGIN_URL = "https://YOUR_OKTA_DOMAIN/login";
+  const JENKINS_URL = "http://YOUR_JENKINS_URL";
 
-    if (isAuthenticated === "true") {
-      loadIframe();
-    } else {
-      // Redirect to Okta login
-      window.location.href = "YOUR_OKTA_LOGIN_URL";
+  function loadJenkins() {
+    document.getElementById("app").innerHTML = `
+      <iframe src="${JENKINS_URL}"
+        style="width:100%; height:100vh; border:none;">
+      </iframe>
+    `;
+  }
+
+  function redirectToOkta() {
+    window.location.href = OKTA_LOGIN_URL;
+  }
+
+  function checkCallback() {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code"); // Okta returns this after login
+
+    if (code) {
+      // In real setup, you would exchange this code for tokens via backend
+      loadJenkins();
+      return;
     }
+
+    // If no login code → send user to Okta
+    redirectToOkta();
   }
 
-  function loadIframe() {
-    const iframe = document.createElement("iframe");
-    iframe.src = "http://your-jenkins-url";
-    iframe.width = "100%";
-    iframe.height = "800px";
-    iframe.style.border = "none";
-
-    document.getElementById("iframeContainer").appendChild(iframe);
-  }
-
-  init();
+  checkCallback();
 </script>
 
 </body>
