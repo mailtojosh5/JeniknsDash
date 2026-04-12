@@ -10,29 +10,29 @@ function init() {
 
   console.log("Page loaded:", url);
 
-  // STEP 1: If returned from Okta
+  // STEP 1: Check if returned from Okta
   if (url.includes("session_hint=AUTHENTICATED")) {
+    console.log("✅ Returned from Okta");
 
-    console.log("✅ Authenticated detected");
-
-    // store state so future reloads know user is logged in
-    sessionStorage.setItem("isLoggedIn", "true");
+    // Store login state (like bookmark memory)
+    localStorage.setItem("isLoggedIn", "true");
 
     loadIframe();
     return;
   }
 
-  // STEP 2: If already logged in (from storage)
-  if (sessionStorage.getItem("isLoggedIn") === "true") {
+  // STEP 2: If already logged in (bookmark-like behavior)
+  if (localStorage.getItem("isLoggedIn") === "true") {
     console.log("✅ Already logged in (from storage)");
     loadIframe();
     return;
   }
 
-  // STEP 3: Not logged in → redirect to Okta
+  // STEP 3: First time → redirect to Okta
   console.log("❌ Not logged in → redirecting to Okta");
 
-  sessionStorage.setItem("pendingLogin", "true");
+  // Mark that we initiated login
+  localStorage.setItem("loginStarted", "true");
 
   const redirectBack =
     window.location.origin + "?session_hint=AUTHENTICATED";
@@ -57,7 +57,10 @@ function loadIframe() {
   container.appendChild(iframe);
 }
 
-init();
+// 🔁 This runs EVERY time page loads (like bookmark re-run)
+window.onload = function () {
+  init();
+};
 </script>
 
 </body>
