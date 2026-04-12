@@ -5,21 +5,28 @@
 <div id="iframeContainer"></div>
 
 <script>
-function checkAuthLoop() {
+function init() {
   const url = window.location.href;
 
-  console.log("Checking URL:", url);
+  console.log("Current URL:", url);
 
+  // STEP 1: After Okta login comes back here
   if (url.includes("session_hint=AUTHENTICATED")) {
     console.log("✅ Authenticated → loading iframe");
     loadIframe();
     return;
   }
 
-  console.log("❌ Not authenticated yet... waiting");
+  // STEP 2: Not authenticated → send to Okta
+  console.log("❌ Not authenticated → redirecting to Okta");
 
-  // Safe loop (checks every 1 second)
-  setTimeout(checkAuthLoop, 1000);
+  const redirectBack =
+    window.location.origin + "?session_hint=AUTHENTICATED";
+
+  const oktaUrl =
+    "YOUR_OKTA_LOGIN_URL?redirect_uri=" + encodeURIComponent(redirectBack);
+
+  window.location.href = oktaUrl;
 }
 
 function loadIframe() {
@@ -38,8 +45,7 @@ function loadIframe() {
   container.appendChild(iframe);
 }
 
-// start loop
-checkAuthLoop();
+init();
 </script>
 
 </body>
