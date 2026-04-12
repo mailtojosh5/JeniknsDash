@@ -1,44 +1,64 @@
 <!DOCTYPE html>
 <html>
-<head>
-    <title>My App Portal</title>
-</head>
 <body>
-    <div id="iframeContainer">
-        <h2 id="status">Connecting to Authentication...</h2>
-    </div>
 
-    <script>
-    (function() {
-        const url = window.location.href;
-        
-        // Target App and Okta Config
-        const GITHUB_URL = window.location.origin + window.location.pathname;
-        const OKTA_BASE = "https://your-org.okta.com"; 
-        const JENKINS_URL = "https://your-jenkins-url.com";
+<div id="iframeContainer"></div>
 
-        // STEP 4: Detect if we have returned to GitHub from Okta
-        if (url.includes("session_hint=AUTHENTICATED") || url.includes("check=true")) {
-            document.getElementById("status").innerText = "Loading App...";
-            loadIframe();
-        } 
-        // STEP 1: If we are just starting, go to Okta
-        else {
-            // We append the 'redirect_uri' to the Okta URL. 
-            // This is the instruction that tells Okta to return to GitHub after login.
-            const returnTo = encodeURIComponent(GITHUB_URL + "?session_hint=AUTHENTICATED");
-            
-            // Note: This URL format depends on your specific Okta App type
-            const oktaUrl = `${OKTA_BASE}/home/bookmark/0oa.../123?redirect_uri=${returnTo}`;
+<script>
+function init() {
+  const url = window.location.href;
 
-            window.location.href = oktaUrl;
-        }
+  console.log("Page loaded:", url);
 
-        function loadIframe() {
-            const container = document.getElementById("iframeContainer");
-            container.innerHTML = `<iframe src="${JENKINS_URL}" style="position:fixed; top:0; left:0; width:100%; height:100%; border:none;"></iframe>`;
-        }
-    })();
-    </script>
+  // STEP 1: If returned from Okta
+  if (url.includes("session_hint=AUTHENTICATED")) {
+
+    console.log("✅ Authenticated detected");
+
+    // store state so future reloads know user is logged in
+    sessionStorage.setItem("isLoggedIn", "true");
+
+    loadIframe();
+    return;
+  }
+
+  // STEP 2: If already logged in (from storage)
+  if (sessionStorage.getItem("isLoggedIn") === "true") {
+    console.log("✅ Already logged in (from storage)");
+    loadIframe();
+    return;
+  }
+
+  // STEP 3: Not logged in → redirect to Okta
+  console.log("❌ Not logged in → redirecting to Okta");
+
+  sessionStorage.setItem("pendingLogin", "true");
+
+  const redirectBack =
+    window.location.origin + "?session_hint=AUTHENTICATED";
+
+  const oktaUrl =
+    "YOUR_OKTA_LOGIN_URL?redirect_uri=" + encodeURIComponent(redirectBack);
+
+  window.location.href = oktaUrl;
+}
+
+function loadIframe() {
+  const container = document.getElementById("iframeContainer");
+
+  if (container.querySelector("iframe")) return;
+
+  const iframe = document.createElement("iframe");
+  iframe.src = "https://your-jenkins-url";
+  iframe.width = "100%";
+  iframe.height = "800px";
+  iframe.style.border = "none";
+
+  container.appendChild(iframe);
+}
+
+init();
+</script>
+
 </body>
 </html>
