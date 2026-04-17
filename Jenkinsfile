@@ -32,19 +32,27 @@ pipeline {
 
                     def results = []
 
-                    // ---- extract timestamp from cucumber.html ----
+                    // ✅ Extract "X days ago" OR fallback timestamp
                     def extractRunDateFromHtml = { filePath ->
 
                         def html = readFile(filePath)
 
-                        def matcher = (html =~ /(?i)(generated|run\s*time|report\s*time)[^0-9]*([0-9]{4}-[0-9]{2}-[0-9]{2}[^<\n]*)/)
-                        if (matcher.find()) {
-                            return matcher.group(2).trim()
+                        // ✅ 1. Relative time (PRIMARY)
+                        def relative = (html =~ /([0-9]+\s+(seconds?|minutes?|hours?|days?|months?|years?)\s+ago)/)
+                        if (relative.find()) {
+                            return relative.group(1)
                         }
 
-                        def fallback = (html =~ /([0-9]{4}-[0-9]{2}-[0-9]{2}\s[0-9]{2}:[0-9]{2}:[0-9]{2})/)
-                        if (fallback.find()) {
-                            return fallback.group(1)
+                        // ✅ 2. ISO timestamp fallback
+                        def iso = (html =~ /([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2})/)
+                        if (iso.find()) {
+                            return iso.group(1).replace("T", " ")
+                        }
+
+                        // ✅ 3. Standard timestamp fallback
+                        def standard = (html =~ /([0-9]{4}-[0-9]{2}-[0-9]{2}\s[0-9]{2}:[0-9]{2}:[0-9]{2})/)
+                        if (standard.find()) {
+                            return standard.group(1)
                         }
 
                         return "N/A"
@@ -63,12 +71,12 @@ pipeline {
 
                         def lastRun = "N/A"
 
-                        // ---- get run time from HTML ----
+                        // ✅ Get last run from HTML
                         if (fileExists(htmlFile)) {
                             lastRun = extractRunDateFromHtml(htmlFile)
                         }
 
-                        // ---- parse JSON results ----
+                        // ✅ Parse JSON
                         if (fileExists(jsonFile)) {
 
                             def json = readJSON file: jsonFile
@@ -100,7 +108,6 @@ pipeline {
                         ]
                     }
 
-                    // ✅ SAFE JSON write (no JsonOutput)
                     writeJSON file: "summary.json", json: results
                 }
             }
@@ -113,7 +120,6 @@ pipeline {
                     def data = readJSON file: 'summary.json'
 
                     def cards = ""
-
                     def totalPassed = 0
                     def totalFailed = 0
                     def totalSkipped = 0
@@ -127,8 +133,7 @@ pipeline {
                         cards += """
                         <div class="card">
                             <h3>${job.jobName}</h3>
-
-                            <p class="meta">🕒 Last Run: ${job.lastRun}</p>
+                            <p class="meta">🕒 Last Run: <b>${job.lastRun}</b></p>
 
                             <p>✅ Passed: ${job.passed}</p>
                             <p>❌ Failed: ${job.failed}</p>
@@ -178,8 +183,8 @@ h2 {
 }
 
 .meta {
-    font-size: 12px;
-    color: gray;
+    font-size: 13px;
+    color: #555;
 }
 
 h4 {
