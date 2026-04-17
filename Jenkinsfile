@@ -1,45 +1,247 @@
-def jobSummaries = []
+pipeline {
+    agent any
 
-for (j in jobs) {
+    stages {
 
-    echo "Processing job: ${j}"
+        stage('Copy Reports') {
+            steps {
+                script {
 
-    def lastRun = "N/A"
+                    def jobs = ["API-Tests", "UI-Tests", "Regression-Tests"]
 
-    try {
+                    for (j in jobs) {
 
-        def jobPath = j.replaceAll('/', '/job/')
-        def url = "${env.BUILD_URL}../job/${jobPath}/lastSuccessfulBuild/api/json"
+                        echo "Copying reports from ${j}"
 
-        echo "Calling: ${url}"
-
-        def response = httpRequest(
-            url: url,
-            validResponseCodes: '200'
-        )
-
-        def json = readJSON text: response.content
-
-        if (json.timestamp) {
-            lastRun = new Date(json.timestamp).format("yyyy-MM-dd HH:mm:ss")
+                        copyArtifacts(
+                            projectName: j,
+                            selector: lastSuccessful(),
+                            filter: "**/cucumber.json, **/cucumber.html",
+                            target: "reports/${j}",
+                            flatten: true,
+                            optional: true
+                        )
+                    }
+                }
+            }
         }
 
-    } catch (err) {
-        echo "❌ Failed to fetch build info for ${j}: ${err}"
+        stage('Parse + Build Summary') {
+            steps {
+                script {
+
+                    def results = []
+
+                    def extractRunDateFromHtml = { filePath ->
+
+                        def html = readFile(filePath)
+
+                        def matcher = (html =~ /(?i)(generated|run\s*time|report\s*time)[^0-9]*([0-9]{4}-[0-9]{2}-[0-9]{2}[^<\n]*)/)
+                        if (matcher.find()) {
+                            return matcher.group(2).trim()
+                        }
+
+                        def fallback = (html =~ /([0-9]{4}-[0-9]{2}-[0-9]{2}\s[0-9]{2}:[0-9]{2}:[0-9]{2})/)
+                        if (fallback.find()) {
+                            return fallback.group(1)
+                        }
+
+                        return "N/A"
+                    }
+
+                    def files = ["API-Tests", "UI-Tests", "Regression-Tests"]
+
+                    files.each { jobName ->
+
+                        def passed = 0
+                        def failed = 0
+                        def skipped = 0
+
+                        def jsonFile = "reports/${jobName}/cucumber.json"
+                        def htmlFile = "reports/${jobName}/cucumber.html"
+
+                        def lastRun = "N/A"
+
+                        // -------- Extract run date from HTML --------
+                        if (fileExists(htmlFile)) {
+                            lastRun = extractRunDateFromHtml(htmlFile)
+                        }
+
+                        // -------- Parse JSON results --------
+                        if (fileExists(jsonFile)) {
+
+                            def json = readJSON file: jsonFile
+
+                            json.each { feature ->
+                                feature.elements?.each { scenario ->
+                                    scenario.steps?.each { step ->
+
+                                        def status = step.result?.status ?: "skipped"
+
+                                        if (status == "passed") passed++
+                                        if (status == "failed") failed++
+                                        if (status == "skipped") skipped++
+                                    }
+                                }
+                            }
+                        }
+
+                        def total = passed + failed + skipped
+                        def passPercent = total > 0 ? ((passed * 100) / total).round(2) : 0
+
+                        results << [
+                            jobName: jobName,
+                            lastRun: lastRun,
+                            passed: passed,
+                            failed: failed,
+                            skipped: skipped,
+                            passPercent: passPercent
+                        ]
+                    }
+
+                    writeFile file: "summary.json",
+                        text: groovy.json.JsonOutput.prettyPrint(
+                            groovy.json.JsonOutput.toJson(results)
+                        )
+                }
+            }
+        }
+
+        stage('Generate Dashboard') {
+            steps {
+                script {
+
+                    def data = readJSON file: 'summary.json'
+
+                    def cards = ""
+
+                    def totalPassed = 0
+                    def totalFailed = 0
+                    def totalSkipped = 0
+
+                    data.each { job ->
+
+                        totalPassed += job.passed
+                        totalFailed += job.failed
+                        totalSkipped += job.skipped
+
+                        cards += """
+                        <div class="card">
+                            <h3>${job.jobName}</h3>
+                            <p class="meta">🕒 Last Run: ${job.lastRun}</p>
+
+                            <div class="stats">
+                                <p>✅ Passed: ${job.passed}</p>
+                                <p>❌ Failed: ${job.failed}</p>
+                                <p>⏭ Skipped: ${job.skipped}</p>
+                            </div>
+
+                            <h4>Pass Rate: ${job.passPercent}%</h4>
+                        </div>
+                        """
+                    }
+
+                    def html = """
+<html>
+<head>
+<title>Cucumber Dashboard</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+body {
+    font-family: Arial;
+    background: #f4f6f8;
+    margin: 0;
+    padding: 20px;
+}
+
+h2 {
+    text-align: center;
+}
+
+.container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 15px;
+}
+
+.card {
+    background: white;
+    width: 260px;
+    padding: 15px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.card h3 {
+    margin: 0 0 10px 0;
+}
+
+.meta {
+    font-size: 12px;
+    color: gray;
+}
+
+.stats p {
+    margin: 5px 0;
+}
+
+h4 {
+    margin-top: 10px;
+}
+
+.chart-box {
+    width: 420px;
+    margin: 30px auto;
+}
+</style>
+
+</head>
+
+<body>
+
+<h2>🚀 Cucumber Test Dashboard</h2>
+
+<div class="container">
+    ${cards}
+</div>
+
+<div class="chart-box">
+    <canvas id="chart"></canvas>
+</div>
+
+<script>
+new Chart(document.getElementById("chart"), {
+    type: "pie",
+    data: {
+        labels: ["Passed", "Failed", "Skipped"],
+        datasets: [{
+            data: [${totalPassed}, ${totalFailed}, ${totalSkipped}],
+            backgroundColor: ["#28a745", "#dc3545", "#6c757d"]
+        }]
     }
+});
+</script>
 
-    copyArtifacts(
-        projectName: j,
-        selector: lastSuccessful(),
-        filter: "**/cucumber.json",
-        target: "reports/${j}",
-        flatten: true,
-        optional: true
-    )
+</body>
+</html>
+"""
 
-    jobSummaries << [
-        jobName: j,
-        lastRun: lastRun,
-        reportPath: "reports/${j}/cucumber.json"
-    ]
+                    writeFile file: "dashboard.html", text: html
+                }
+            }
+        }
+
+        stage('Publish Dashboard') {
+            steps {
+                publishHTML([
+                    reportDir: '.',
+                    reportFiles: 'dashboard.html',
+                    reportName: 'Cucumber Dashboard'
+                ])
+            }
+        }
+    }
 }
