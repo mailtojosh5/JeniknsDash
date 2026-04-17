@@ -7,8 +7,14 @@ for (j in jobs) {
     def lastRun = "N/A"
 
     try {
+
+        def jobPath = j.replaceAll('/', '/job/')
+        def url = "${env.BUILD_URL}../job/${jobPath}/lastSuccessfulBuild/api/json"
+
+        echo "Calling: ${url}"
+
         def response = httpRequest(
-            url: "${env.JENKINS_URL}/job/${j}/lastSuccessfulBuild/api/json",
+            url: url,
             validResponseCodes: '200'
         )
 
@@ -19,7 +25,7 @@ for (j in jobs) {
         }
 
     } catch (err) {
-        echo "Could not fetch build info for ${j}"
+        echo "❌ Failed to fetch build info for ${j}: ${err}"
     }
 
     copyArtifacts(
