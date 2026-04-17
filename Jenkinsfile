@@ -26,12 +26,13 @@ pipeline {
             }
         }
 
-        stage('Parse + Build Summary') {
+        stage('Parse Reports + Build Summary') {
             steps {
                 script {
 
                     def results = []
 
+                    // ---- extract timestamp from cucumber.html ----
                     def extractRunDateFromHtml = { filePath ->
 
                         def html = readFile(filePath)
@@ -49,9 +50,9 @@ pipeline {
                         return "N/A"
                     }
 
-                    def files = ["API-Tests", "UI-Tests", "Regression-Tests"]
+                    def jobs = ["API-Tests", "UI-Tests", "Regression-Tests"]
 
-                    files.each { jobName ->
+                    jobs.each { jobName ->
 
                         def passed = 0
                         def failed = 0
@@ -62,12 +63,12 @@ pipeline {
 
                         def lastRun = "N/A"
 
-                        // -------- Extract run date from HTML --------
+                        // ---- get run time from HTML ----
                         if (fileExists(htmlFile)) {
                             lastRun = extractRunDateFromHtml(htmlFile)
                         }
 
-                        // -------- Parse JSON results --------
+                        // ---- parse JSON results ----
                         if (fileExists(jsonFile)) {
 
                             def json = readJSON file: jsonFile
@@ -99,10 +100,8 @@ pipeline {
                         ]
                     }
 
-                    writeFile file: "summary.json",
-                        text: groovy.json.JsonOutput.prettyPrint(
-                            groovy.json.JsonOutput.toJson(results)
-                        )
+                    // ✅ SAFE JSON write (no JsonOutput)
+                    writeJSON file: "summary.json", json: results
                 }
             }
         }
@@ -128,13 +127,12 @@ pipeline {
                         cards += """
                         <div class="card">
                             <h3>${job.jobName}</h3>
+
                             <p class="meta">🕒 Last Run: ${job.lastRun}</p>
 
-                            <div class="stats">
-                                <p>✅ Passed: ${job.passed}</p>
-                                <p>❌ Failed: ${job.failed}</p>
-                                <p>⏭ Skipped: ${job.skipped}</p>
-                            </div>
+                            <p>✅ Passed: ${job.passed}</p>
+                            <p>❌ Failed: ${job.failed}</p>
+                            <p>⏭ Skipped: ${job.skipped}</p>
 
                             <h4>Pass Rate: ${job.passPercent}%</h4>
                         </div>
@@ -182,10 +180,6 @@ h2 {
 .meta {
     font-size: 12px;
     color: gray;
-}
-
-.stats p {
-    margin: 5px 0;
 }
 
 h4 {
