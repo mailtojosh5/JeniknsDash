@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Automation Progress Report</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
+<style>
+:root {
+  --bg: #080c1a;
+  --bg2: #0d1225;
+  --bg3: #111830;
+  --card: #141929;
+  --card2: #1a2035;
+  --border: rgba(99,102,241,0.18);
+  --border2: rgba(99,102,241,0.32);
+  --purple: #818cf8;
+  --purple-d: #6366f1;
+  --purple-glow: rgba(99,102,241,0.35);
+  --teal: #34d399;
+  --teal-glow: rgba(52,211,153,0.3);
+  --amber: #fbbf24;
+  --amber-glow: rgba(251,191,36,0.3);
+  --red: #f87171;
+  --red-glow: rgba(248,113,113,0.3);
+  --pink: #f472b6;
+  --pink-glow: rgba(244,114,182,0.3);
+  --gray: #6b7280;
+  --text: #e2e8f0;
+  --text2: #94a3b8;
+  --text3: #64748b;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  background-image:
+    radial-gradient(ellipse 80% 50% at 20% -10%, rgba(99,102,241,0.12) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 80% 110%, rgba(52,211,153,0.08) 0%, transparent 60%);
+}
+.header {
+  text-align: center; padding: 3rem 1.5rem 2.5rem;
+  position: relative; border-bottom: 1px solid var(--border);
+}
+.header::after {
+  content: ''; position: absolute; bottom: -1px; left: 50%; transform: translateX(-50%);
+  width: 200px; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--purple-d), transparent);
+}
+.header-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(99,102,241,0.12); border: 1px solid rgba(99,102,241,0.3);
+  color: var(--purple); font-size: 0.7rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+  padding: 5px 14px; border-radius: 20px; margin-bottom: 1.2rem;
+}
+.pulse { width: 6px; height: 6px; border-radius: 50%; background: var(--teal); animation: pulse 2s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(1.4)} }
+.header h1 {
+  font-size: 2.4rem; font-weight: 800; letter-spacing: -1px;
+  background: linear-gradient(135deg, #e2e8f0 30%, var(--purple) 70%, var(--teal) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  margin-bottom: 0.5rem;
+}
+.header p { color: var(--text2); font-size: 0.95rem; }
+.nav-tabs {
+  display: flex; justify-content: center; gap: 4px;
+  padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border); flex-wrap: wrap;
+}
+.nav-tab {
+  padding: 0.5rem 1.2rem; border-radius: 8px;
+  font-size: 0.82rem; font-weight: 600; cursor: pointer;
+  border: 1px solid transparent; color: var(--text2); background: transparent; transition: all 0.2s;
+  display: flex; align-items: center; gap: 6px;
+}
+.nav-tab:hover { color: var(--text); background: var(--card2); }
+.nav-tab.active { background: rgba(99,102,241,0.15); border-color: rgba(99,102,241,0.4); color: var(--purple); }
+.container { max-width: 1020px; margin: 0 auto; padding: 2rem 1.5rem; }
+.panel { display: none; }
+.panel.active { display: block; }
+.gcard {
+  background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+  padding: 1.75rem; margin-bottom: 1.5rem; position: relative; transition: border-color 0.3s;
+}
+.gcard:hover { border-color: var(--border2); }
+.gcard.glow-purple { box-shadow: 0 0 30px rgba(99,102,241,0.08); }
+.gcard.glow-teal   { box-shadow: 0 0 30px rgba(52,211,153,0.06); }
+.section-label {
+  font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 1.8px; color: var(--text3); margin-bottom: 1.1rem;
+  display: flex; align-items: center; gap: 8px;
+}
+.section-label::after {
+  content: ''; flex: 1; height: 1px;
+  background: linear-gradient(90deg, var(--border), transparent);
+}
+.input-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; }
+.input-group { display: flex; flex-direction: column; gap: 6px; }
+.input-group label {
+  font-size: 0.74rem; font-weight: 600; color: var(--text2);
+  display: flex; align-items: center; gap: 6px; letter-spacing: 0.3px;
+}
+.cdot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.input-group input {
+  background: var(--bg2); border: 1px solid var(--border2); border-radius: 10px;
+  padding: 0.62rem 0.9rem; font-size: 0.95rem; font-weight: 600; color: var(--text);
+  outline: none; width: 100%; transition: border-color 0.2s, box-shadow 0.2s;
+}
+.input-group input:focus { border-color: var(--purple-d); box-shadow: 0 0 0 3px rgba(99,102,241,0.18); }
+.input-group input::placeholder { color: var(--text3); font-weight: 400; }
+.input-group input[readonly] { opacity: 0.6; cursor: default; }
+.custom-fields-section { margin-top: 1.25rem; border-top: 1px solid var(--border); padding-top: 1.25rem; }
+.custom-field-row {
+  display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.7rem;
+  animation: fadeUp 0.25s ease both;
+}
+@keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+.custom-field-name {
+  flex: 2; background: var(--bg2); border: 1px solid var(--border2); border-radius: 10px;
+  padding: 0.55rem 0.8rem; font-size: 0.85rem; font-weight: 500; color: var(--text);
+  outline: none; transition: border-color 0.2s;
+}
+.custom-field-name:focus { border-color: var(--purple-d); }
+.custom-field-name::placeholder { color: var(--text3); font-weight: 400; }
+.custom-field-value {
+  flex: 1; background: var(--bg2); border: 1px solid var(--border2); border-radius: 10px;
+  padding: 0.55rem 0.8rem; font-size: 0.9rem; font-weight: 600; color: var(--text);
+  outline: none; min-width: 0; transition: border-color 0.2s;
+}
+.custom-field-value:focus { border-color: var(--purple-d); }
+.custom-field-color {
+  width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border2);
+  background: var(--bg2); cursor: pointer; padding: 2px; flex-shrink: 0;
+}
+.remove-field-btn {
+  background: none; border: none; color: var(--text3); cursor: pointer;
+  font-size: 15px; padding: 4px; border-radius: 6px; transition: color 0.15s, background 0.15s; flex-shrink: 0;
+}
+.remove-field-btn:hover { color: var(--red); background: rgba(248,113,113,0.1); }
+.add-custom-field-btn {
+  display: flex; align-items: center; gap: 6px; padding: 0.5rem 1rem; border-radius: 9px;
+  border: 1px dashed var(--border2); background: transparent;
+  color: var(--text3); font-size: 0.78rem; font-weight: 600; cursor: pointer; transition: all 0.15s; margin-top: 0.25rem;
+}
+.add-custom-field-btn:hover { border-color: var(--purple); color: var(--purple); background: rgba(99,102,241,0.07); }
+.custom-fields-hint { font-size: 0.73rem; color: var(--text3); margin-bottom: 0.85rem; display: flex; align-items: center; gap: 6px; }
+.tech-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; margin-bottom: 1.5rem; }
+.tech-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 1.25rem 1.4rem; transition: border-color 0.25s, box-shadow 0.25s; }
+.tech-card:hover { border-color: var(--border2); }
+.tech-header { display: flex; align-items: center; gap: 10px; margin-bottom: 1rem; }
+.tech-icon { width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+.tech-title { font-size: 0.92rem; font-weight: 700; color: var(--text); }
+.tech-subtitle { font-size: 0.72rem; color: var(--text3); margin-top: 2px; }
+.btn-primary {
+  display: block; width: 100%; margin-top: 1.25rem; padding: 0.9rem; border: none; border-radius: 12px;
+  cursor: pointer; font-size: 0.95rem; font-weight: 700; color: white;
+  background: linear-gradient(135deg, #6366f1, #4f46e5); box-shadow: 0 0 20px rgba(99,102,241,0.4);
+  transition: box-shadow 0.2s, transform 0.15s; position: relative; overflow: hidden; letter-spacing: 0.3px;
+}
+.btn-primary:hover { box-shadow: 0 0 30px rgba(99,102,241,0.6); transform: translateY(-1px); }
+.btn-primary:active { transform: translateY(0); }
+.btn-primary::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+  transform: translateX(-100%); transition: transform 0.5s;
+}
+.btn-primary:hover::after { transform: translateX(100%); }
+.error-msg {
+  background: rgba(248,113,113,0.1); border: 1px solid rgba(248,113,113,0.3);
+  color: #fca5a5; border-radius: 10px; padding: 0.75rem 1rem; font-size: 0.85rem; margin-top: 0.75rem; display: none;
+}
+.add-team-btn {
+  display: flex; align-items: center; gap: 6px; padding: 0.55rem 1rem; border-radius: 9px;
+  border: 1px dashed var(--border2); background: transparent; color: var(--text3);
+  font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all 0.15s; margin-top: 0.5rem;
+}
+.add-team-btn:hover { border-color: var(--purple); color: var(--purple); background: rgba(99,102,241,0.07); }
+
+.team-tc-card {
+  background: rgba(99,102,241,0.08);
+  border: 1px solid rgba(99,102,241,0.3);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.team-tc-icon {
+  width: 40px; height: 40px; border-radius: 10px;
+  background: rgba(99,102,241,0.15); color: var(--purple);
+  display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0;
+}
+.team-tc-label { font-size: 0.72rem; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+.team-tc-input {
+  background: var(--bg2); border: 1px solid var(--border2); border-radius: 10px;
+  padding: 0.55rem 0.9rem; font-size: 1.05rem; font-weight: 700; color: var(--purple);
+  outline: none; width: 160px; transition: border-color 0.2s, box-shadow 0.2s;
+}
+.team-tc-input:focus { border-color: var(--purple-d); box-shadow: 0 0 0 3px rgba(99,102,241,0.18); }
+.team-tc-hint { font-size: 0.72rem; color: var(--text3); margin-top: 3px; }
+
+#report { display: none; }
+.report-topbar {
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;
+}
+.report-timestamp { font-size: 0.8rem; color: var(--text3); }
+.btn-print {
+  display: flex; align-items: center; gap: 6px; padding: 0.5rem 1rem; border-radius: 9px;
+  border: 1px solid var(--border2); background: var(--card2); color: var(--purple);
+  font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: box-shadow 0.2s;
+}
+.btn-print:hover { box-shadow: 0 0 14px var(--purple-glow); }
+.hero-row { display: grid; grid-template-columns: 220px 1fr; gap: 1.25rem; align-items: start; margin-bottom: 1.5rem; }
+@media(max-width:620px){ .hero-row { grid-template-columns: 1fr; } }
+.donut-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 1.75rem; text-align: center; box-shadow: 0 0 40px rgba(99,102,241,0.08); }
+.donut-wrap { position: relative; display: inline-block; width: 160px; height: 160px; }
+.donut-wrap svg { transform: rotate(-90deg); }
+circle.dtrack { fill: none; stroke: rgba(99,102,241,0.1); stroke-width: 14; }
+circle.dfill  { fill: none; stroke-width: 14; stroke-linecap: round; transition: stroke-dasharray 1.4s cubic-bezier(0.4,0,0.2,1); }
+.donut-center { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); text-align: center; }
+.donut-pct { font-size: 2rem; font-weight: 800; line-height: 1; }
+.donut-lbl { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.8px; color: var(--text3); text-transform: uppercase; }
+.donut-title { font-size: 0.9rem; font-weight: 700; margin-top: 1rem; color: var(--text); }
+.donut-sub   { font-size: 0.75rem; color: var(--text2); margin-top: 3px; }
+.mini-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.75rem; }
+.mini-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 0.9rem 1rem; position: relative; overflow: hidden; animation: fadeUp 0.4s ease both; }
+.mini-card::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 2px; }
+.mini-icon { font-size: 18px; margin-bottom: 6px; }
+.mini-lbl { font-size: 0.67rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text3); }
+.mini-val  { font-size: 1.6rem; font-weight: 800; line-height: 1; margin-top: 2px; }
+.mini-pct  { font-size: 0.72rem; font-weight: 600; margin-top: 2px; color: var(--text3); }
+.stack-track { height: 24px; border-radius: 12px; display: flex; overflow: hidden; background: var(--bg2); margin: 0.85rem 0; border: 1px solid var(--border); }
+.stack-seg { height: 100%; width: 0%; transition: width 1.2s cubic-bezier(0.4,0,0.2,1); }
+.legend-row { display: flex; flex-wrap: wrap; gap: 12px; }
+.leg-item { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; font-weight: 600; color: var(--text2); }
+.leg-dot { width: 9px; height: 9px; border-radius: 3px; flex-shrink: 0; }
+.pbar-row { margin-bottom: 0.95rem; animation: fadeUp 0.4s ease both; }
+.pbar-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+.pbar-lbl  { font-size: 0.8rem; font-weight: 600; color: var(--text); display: flex; align-items: center; gap: 6px; }
+.pbar-cnt  { font-size: 0.78rem; font-weight: 700; }
+.pbar-track { height: 8px; background: var(--bg2); border-radius: 99px; overflow: hidden; border: 1px solid var(--border); }
+.pbar-fill  { height: 100%; border-radius: 99px; width: 0%; transition: width 1.2s cubic-bezier(0.4,0,0.2,1); }
+.tech-report-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; margin-bottom: 1.5rem; }
+.tech-report-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 1.25rem 1.4rem; animation: fadeUp 0.5s ease both; }
+.tech-report-header { display: flex; align-items: center; gap: 10px; margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border); }
+.tech-mini-donut { position: relative; width: 52px; height: 52px; flex-shrink: 0; }
+.tech-mini-donut svg { transform: rotate(-90deg); }
+.tech-mini-pct { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); font-size: 0.65rem; font-weight: 800; color: var(--text); }
+.gtable { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+.gtable th { text-align: left; padding: 0.5rem 0.75rem; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text3); font-weight: 700; border-bottom: 1px solid var(--border); }
+.gtable td { padding: 0.7rem 0.75rem; border-bottom: 1px solid rgba(99,102,241,0.07); color: var(--text2); font-weight: 500; }
+.gtable tr:last-child td { border-bottom: none; }
+.gpill { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 0.67rem; font-weight: 700; letter-spacing: 0.2px; }
+.report-footer { text-align: center; font-size: 0.72rem; color: var(--text3); padding: 1.5rem 0 2rem; }
+.custom-report-section { margin-top: 1.25rem; border-top: 1px solid var(--border); padding-top: 1.1rem; }
+.custom-report-label { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text3); margin-bottom: 0.85rem; }
+
+.team-tc-banner {
+  background: rgba(99,102,241,0.08);
+  border: 1px solid rgba(99,102,241,0.25);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.team-tc-stat {
+  display: flex; flex-direction: column; align-items: center;
+  background: rgba(99,102,241,0.1); border-radius: 10px; padding: 0.65rem 1.1rem; min-width: 90px;
+}
+.team-tc-stat-val { font-size: 1.5rem; font-weight: 800; color: var(--purple); line-height: 1; }
+.team-tc-stat-lbl { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text3); margin-top: 3px; }
+
+@media print {
+  body { background: white; color: black; }
+  .nav-tabs, .panel:not(#panel-report) { display: none !important; }
+  #report { display: block !important; }
+  #panel-report { display: block !important; }
+  .gcard, .tech-report-card, .mini-card { background: white; border: 1px solid #ddd; box-shadow: none; }
+  .btn-print { display: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-badge"><span class="pulse"></span> Live Dashboard</div>
+  <h1>⚡ Automation Progress Report</h1>
+  <p>Comprehensive test automation tracking across platforms, technologies & teams</p>
+</div>
+
+<div class="nav-tabs">
+  <button class="nav-tab active" onclick="switchTab('overall')"><i class="ti ti-layout-dashboard" aria-hidden="true"></i> Overall Progress</button>
+  <button class="nav-tab" onclick="switchTab('tech')"><i class="ti ti-cpu" aria-hidden="true"></i> By Technology</button>
+  <button class="nav-tab" onclick="switchTab('teams')"><i class="ti ti-users" aria-hidden="true"></i> Team Outreach</button>
+  <button class="nav-tab" onclick="switchTab('report')"><i class="ti ti-chart-bar" aria-hidden="true"></i> View Report</button>
+</div>
+
+<div class="container">
+
+<!-- PANEL 1: OVERALL -->
+<div class="panel active" id="panel-overall">
+  <div class="gcard glow-purple">
+    <p class="section-label"><i class="ti ti-list-check" aria-hidden="true"></i> Overall Test Case Status</p>
+    <div class="input-grid">
+      <div class="input-group">
+        <label><span class="cdot" style="background:var(--purple)"></span>Total Test Cases</label>
+        <input type="number" id="total" min="0" placeholder="e.g. 500" value="500">
+      </div>
+      <div class="input-group">
+        <label><span class="cdot" style="background:var(--teal)"></span>Completed</label>
+        <input type="number" id="completed" min="0" placeholder="e.g. 200" value="200">
+      </div>
+      <div class="input-group">
+        <label><span class="cdot" style="background:var(--amber)"></span>In Progress</label>
+        <input type="number" id="inprogress" min="0" placeholder="e.g. 80" value="80">
+      </div>
+      <div class="input-group">
+        <label><span class="cdot" style="background:var(--red)"></span>Blocked</label>
+        <input type="number" id="blocked" min="0" placeholder="e.g. 20" value="20">
+      </div>
+      <div class="input-group">
+        <label><span class="cdot" style="background:var(--pink)"></span>Failed / Defective</label>
+        <input type="number" id="failed" min="0" placeholder="e.g. 10" value="10">
+      </div>
+      <div class="input-group">
+        <label><span class="cdot" style="background:var(--gray)"></span>Not Started <span style="font-size:0.65rem;color:var(--text3)">(auto)</span></label>
+        <input type="number" id="notstarted" readonly placeholder="Auto-calculated" value="190">
+      </div>
+    </div>
+    <div class="custom-fields-section">
+      <p class="section-label" style="margin-bottom:0.5rem"><i class="ti ti-tag" aria-hidden="true"></i> Custom Status Fields</p>
+      <div class="custom-fields-hint"><i class="ti ti-info-circle" aria-hidden="true"></i> Add fields like "Not Feasible for Automation", "Support Not Needed", etc. These count outside the main totals.</div>
+      <div id="overallCustomFields"></div>
+      <button class="add-custom-field-btn" onclick="addCustomField('overall')">
+        <i class="ti ti-plus" aria-hidden="true"></i> Add Custom Status Field
+      </button>
+    </div>
+    <div class="error-msg" id="errorMsg"></div>
+  </div>
+  <button class="btn-primary" onclick="generateReport()">
+    <i class="ti ti-sparkles" aria-hidden="true"></i> Generate Full Report
+  </button>
+</div>
+
+<!-- PANEL 2: TECHNOLOGY -->
+<div class="panel" id="panel-tech">
+  <div class="gcard glow-teal">
+    <p class="section-label"><i class="ti ti-cpu" aria-hidden="true"></i> Technology Platform Breakdown</p>
+    <p style="font-size:0.78rem;color:var(--text3);margin-bottom:1.25rem">Enter test case counts for each automation platform. "Not Started" is auto-calculated.</p>
+    <div class="tech-grid" id="techCardsInput"></div>
+    <div style="border-top:1px solid var(--border);padding-top:1rem;margin-top:0.5rem">
+      <p class="section-label" style="margin-bottom:0.75rem"><i class="ti ti-plus" aria-hidden="true"></i> Add Custom Platform</p>
+      <div style="display:flex;gap:0.75rem;flex-wrap:wrap;align-items:flex-end">
+        <div class="input-group" style="flex:1;min-width:180px">
+          <label>Platform Name</label>
+          <input type="text" id="newPlatformName" placeholder="e.g. API Automation">
+        </div>
+        <button class="add-team-btn" onclick="addPlatform()" style="margin:0;padding:0.62rem 1.2rem">
+          <i class="ti ti-plus" aria-hidden="true"></i> Add Platform
+        </button>
+      </div>
+    </div>
+    <div class="custom-fields-section">
+      <p class="section-label" style="margin-bottom:0.5rem"><i class="ti ti-tag" aria-hidden="true"></i> Custom Tech-Level Fields</p>
+      <div class="custom-fields-hint"><i class="ti ti-info-circle" aria-hidden="true"></i> Add platform-wide categories like "Not Feasible", "Deprecated", "Manual Only", etc.</div>
+      <div id="techCustomFields"></div>
+      <button class="add-custom-field-btn" onclick="addCustomField('tech')">
+        <i class="ti ti-plus" aria-hidden="true"></i> Add Custom Field
+      </button>
+    </div>
+  </div>
+  <button class="btn-primary" onclick="generateReport()">
+    <i class="ti ti-sparkles" aria-hidden="true"></i> Generate Full Report
+  </button>
+</div>
+
+<!-- PANEL 3: TEAMS -->
+<div class="panel" id="panel-teams">
+  <div class="gcard">
+    <p class="section-label"><i class="ti ti-users" aria-hidden="true"></i> Team Outreach — Quick Entry</p>
+    <p style="font-size:0.78rem;color:var(--text3);margin-bottom:1.5rem">Enter your outreach numbers directly. "Not Started" fields are auto-calculated.</p>
+
+    <div class="team-tc-card">
+      <div class="team-tc-icon"><i class="ti ti-file-check" aria-hidden="true"></i></div>
+      <div style="flex:1">
+        <div class="team-tc-label">Total Test Cases (Teams scope)</div>
+        <input type="number" id="tTestCases" class="team-tc-input" min="0" placeholder="e.g. 320" value="320" oninput="recalcTeams()">
+        <div class="team-tc-hint">Custom fields below will calculate their percentage against this value.</div>
+      </div>
+    </div>
+
+    <div class="input-grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1.1rem">
+      <div class="input-group">
+        <label><span class="cdot" style="background:var(--purple)"></span>Total Teams</label>
+        <input type="number" id="tTotal" min="0" placeholder="e.g. 65" value="65" oninput="recalcTeams()">
+      </div>
+      <div class="input-group">
+        <label><span class="cdot" style="background:var(--teal)"></span>Reached Out</label>
+        <input type="number" id="tReached" min="0" placeholder="e.g. 50" value="50" oninput="recalcTeams()">
+      </div>
+      <div class="input-group">
+        <label><span class="cdot" style="background:var(--amber)"></span>Responded</label>
+        <input type="number" id="tResponded" min="0" placeholder="e.g. 38" value="38" oninput="recalcTeams()">
+      </div>
+      <div class="input-group">
+        <label><span class="cdot" style="background:var(--pink)"></span>Awaiting Response <span style="font-size:0.65rem;color:var(--text3)">(auto)</span></label>
+        <input type="number" id="tAwaiting" readonly value="12">
+      </div>
+      <div class="input-group">
+        <label><span class="cdot" style="background:var(--gray)"></span>Not Yet Reached <span style="font-size:0.65rem;color:var(--text3)">(auto)</span></label>
+        <input type="number" id="tNotReached" readonly value="15">
+      </div>
+    </div>
+
+    <div class="custom-fields-section">
+      <p class="section-label" style="margin-bottom:0.5rem"><i class="ti ti-tag" aria-hidden="true"></i> Custom Outreach Fields</p>
+      <div class="custom-fields-hint"><i class="ti ti-info-circle" aria-hidden="true"></i> Add fields like "Not Feasible for Automation", "Automation Support Not Needed", "Opted Out", etc. Percentages are calculated against Total Test Cases above.</div>
+      <div id="teamsCustomFields"></div>
+      <button class="add-custom-field-btn" onclick="addCustomField('teams')">
+        <i class="ti ti-plus" aria-hidden="true"></i> Add Custom Field
+      </button>
+    </div>
+    <div class="error-msg" id="teamErrorMsg"></div>
+  </div>
+
+  <div class="gcard glow-purple" style="margin-top:0">
+    <p class="section-label"><i class="ti ti-chart-pie" aria-hidden="true"></i> Live Preview</p>
+    <div style="display:flex;gap:0 2rem;flex-wrap:wrap;align-items:center">
+      <div style="position:relative;width:110px;height:110px;flex-shrink:0">
+        <svg width="110" height="110" viewBox="0 0 110 110" role="img" aria-label="Team response rate donut">
+          <circle fill="none" stroke="rgba(99,102,241,0.1)" stroke-width="10" cx="55" cy="55" r="42"/>
+          <circle id="teamDonutFill" fill="none" stroke="#34d399" stroke-width="10" stroke-linecap="round"
+            cx="55" cy="55" r="42" transform="rotate(-90 55 55)"
+            stroke-dasharray="0 263.9" style="transition:stroke-dasharray 0.8s cubic-bezier(0.4,0,0.2,1)"/>
+        </svg>
+        <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center">
+          <div id="teamDonutPct" style="font-size:1.3rem;font-weight:800;color:var(--teal)">0%</div>
+          <div style="font-size:0.58rem;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.5px">response</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:1rem 2rem;flex:1">
+        <div><div style="font-size:2rem;font-weight:800;color:var(--purple)" id="sumTotal">65</div><div style="font-size:0.68rem;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.8px">Total Teams</div></div>
+        <div><div style="font-size:2rem;font-weight:800;color:var(--teal)" id="sumReached">50</div><div style="font-size:0.68rem;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.8px">Reached Out</div></div>
+        <div><div style="font-size:2rem;font-weight:800;color:var(--amber)" id="sumResponded">38</div><div style="font-size:0.68rem;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.8px">Responded</div></div>
+        <div><div style="font-size:2rem;font-weight:800;color:var(--pink)" id="sumPending">12</div><div style="font-size:0.68rem;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.8px">Awaiting</div></div>
+        <div><div style="font-size:2rem;font-weight:800;color:var(--gray)" id="sumNotReached">15</div><div style="font-size:0.68rem;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.8px">Not Reached</div></div>
+        <div><div style="font-size:2rem;font-weight:800;color:var(--purple)" id="sumTestCases">320</div><div style="font-size:0.68rem;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.8px">Total Test Cases</div></div>
+      </div>
+    </div>
+    <div style="margin-top:1.25rem">
+      <div style="font-size:0.68rem;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:0.5rem">Coverage breakdown</div>
+      <div style="height:18px;border-radius:99px;display:flex;overflow:hidden;background:var(--bg2);border:1px solid var(--border)">
+        <div id="tBarResponded"  style="height:100%;background:#34d399;transition:width 0.8s cubic-bezier(0.4,0,0.2,1)"></div>
+        <div id="tBarAwaiting"   style="height:100%;background:#fbbf24;transition:width 0.8s cubic-bezier(0.4,0,0.2,1)"></div>
+        <div id="tBarNotReached" style="height:100%;background:#6b7280;transition:width 0.8s cubic-bezier(0.4,0,0.2,1)"></div>
+      </div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:0.5rem">
+        <span style="display:flex;align-items:center;gap:5px;font-size:0.72rem;color:var(--text2)"><span style="width:9px;height:9px;border-radius:2px;background:#34d399;display:inline-block"></span>Responded</span>
+        <span style="display:flex;align-items:center;gap:5px;font-size:0.72rem;color:var(--text2)"><span style="width:9px;height:9px;border-radius:2px;background:#fbbf24;display:inline-block"></span>Awaiting</span>
+        <span style="display:flex;align-items:center;gap:5px;font-size:0.72rem;color:var(--text2)"><span style="width:9px;height:9px;border-radius:2px;background:#6b7280;display:inline-block"></span>Not Reached</span>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn-primary" onclick="generateReport()">
+    <i class="ti ti-sparkles" aria-hidden="true"></i> Generate Full Report
+  </button>
+</div>
+
+<!-- PANEL 4: REPORT -->
+<div class="panel" id="panel-report">
+  <div id="report">
+    <div class="report-topbar">
+      <div>
+        <div style="font-size:1.1rem;font-weight:700;color:var(--text)">Automation Progress Report</div>
+        <div class="report-timestamp" id="reportMeta"></div>
+      </div>
+      <button class="btn-print" onclick="window.print()"><i class="ti ti-printer" aria-hidden="true"></i> Print</button>
+    </div>
+
+    <div class="gcard glow-purple">
+      <p class="section-label"><i class="ti ti-layout-dashboard" aria-hidden="true"></i> Overall Automation Progress</p>
+      <div class="hero-row">
+        <div class="donut-card" style="margin:0;padding:1.5rem">
+          <div class="donut-wrap">
+            <svg width="160" height="160" viewBox="0 0 160 160" role="img" aria-label="Donut chart showing overall automation completion">
+              <circle class="dtrack" cx="80" cy="80" r="66"/>
+              <circle class="dfill" id="donutFill" cx="80" cy="80" r="66" stroke="#6366f1" stroke-dasharray="0 414.7"/>
+            </svg>
+            <div class="donut-center">
+              <div class="donut-pct" id="donutPct" style="color:var(--purple)">0%</div>
+              <div class="donut-lbl">done</div>
+            </div>
+          </div>
+          <div class="donut-title" id="donutTitle"></div>
+          <div class="donut-sub"   id="donutSub"></div>
+        </div>
+        <div class="mini-grid" id="miniGrid"></div>
+      </div>
+      <div style="margin-top:0.5rem">
+        <p class="section-label" style="margin-bottom:0.6rem"><i class="ti ti-chart-bar" aria-hidden="true"></i> Distribution</p>
+        <div class="stack-track" id="stackBar"></div>
+        <div class="legend-row" id="stackLegend"></div>
+      </div>
+      <div style="margin-top:1.25rem">
+        <p class="section-label" style="margin-bottom:0.75rem"><i class="ti ti-activity" aria-hidden="true"></i> Progress Bars</p>
+        <div id="progressBars"></div>
+      </div>
+      <div id="overallCustomReport"></div>
+    </div>
+
+    <div class="gcard glow-teal">
+      <p class="section-label"><i class="ti ti-cpu" aria-hidden="true"></i> Progress by Technology Platform</p>
+      <div class="tech-report-grid" id="techReportGrid"></div>
+      <div id="techCustomReport"></div>
+    </div>
+
+    <div class="gcard">
+      <p class="section-label"><i class="ti ti-users" aria-hidden="true"></i> Team Outreach Summary</p>
+
+      <div id="rTeamTCBanner" class="team-tc-banner" style="margin-bottom:1.25rem;display:none">
+        <div class="team-tc-icon"><i class="ti ti-file-check" aria-hidden="true"></i></div>
+        <div id="rTeamTCStats" style="display:flex;gap:0.75rem;flex-wrap:wrap;flex:1"></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:180px 1fr;gap:1.5rem;align-items:center;flex-wrap:wrap">
+        <div style="text-align:center">
+          <div style="position:relative;width:130px;height:130px;margin:0 auto">
+            <svg width="130" height="130" viewBox="0 0 130 130" role="img" aria-label="Response rate donut">
+              <circle fill="none" stroke="rgba(99,102,241,0.1)" stroke-width="12" cx="65" cy="65" r="50"/>
+              <circle id="rDonutFill" fill="none" stroke="#34d399" stroke-width="12" stroke-linecap="round"
+                cx="65" cy="65" r="50" transform="rotate(-90 65 65)"
+                stroke-dasharray="0 314.2" style="transition:stroke-dasharray 1.2s cubic-bezier(0.4,0,0.2,1)"/>
+            </svg>
+            <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center">
+              <div id="rDonutPct" style="font-size:1.6rem;font-weight:800;color:var(--teal)">0%</div>
+              <div style="font-size:0.6rem;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.5px">response<br>rate</div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:0.75rem;margin-bottom:1rem">
+            <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:0.85rem;text-align:center">
+              <div style="font-size:1.8rem;font-weight:800;color:var(--purple)" id="rSumTotal">0</div>
+              <div style="font-size:0.62rem;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.8px">Total Teams</div>
+            </div>
+            <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:0.85rem;text-align:center">
+              <div style="font-size:1.8rem;font-weight:800;color:var(--teal)" id="rSumReached">0</div>
+              <div style="font-size:0.62rem;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.8px">Reached Out</div>
+            </div>
+            <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:0.85rem;text-align:center">
+              <div style="font-size:1.8rem;font-weight:800;color:var(--amber)" id="rSumResponded">0</div>
+              <div style="font-size:0.62rem;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.8px">Responded</div>
+            </div>
+            <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:0.85rem;text-align:center">
+              <div style="font-size:1.8rem;font-weight:800;color:var(--pink)" id="rSumPending">0</div>
+              <div style="font-size:0.62rem;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.8px">Awaiting</div>
+            </div>
+            <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:0.85rem;text-align:center">
+              <div style="font-size:1.8rem;font-weight:800;color:var(--gray)" id="rSumNotReached">0</div>
+              <div style="font-size:0.62rem;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.8px">Not Reached</div>
+            </div>
+          </div>
+          <div style="height:16px;border-radius:99px;display:flex;overflow:hidden;background:var(--bg2);border:1px solid var(--border)">
+            <div id="rBarResponded"  style="height:100%;background:#34d399;transition:width 1.2s cubic-bezier(0.4,0,0.2,1)"></div>
+            <div id="rBarAwaiting"   style="height:100%;background:#fbbf24;transition:width 1.2s cubic-bezier(0.4,0,0.2,1)"></div>
+            <div id="rBarNotReached" style="height:100%;background:#6b7280;transition:width 1.2s cubic-bezier(0.4,0,0.2,1)"></div>
+          </div>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:0.5rem">
+            <span style="display:flex;align-items:center;gap:5px;font-size:0.7rem;color:var(--text2)"><span style="width:9px;height:9px;border-radius:2px;background:#34d399;display:inline-block"></span>Responded</span>
+            <span style="display:flex;align-items:center;gap:5px;font-size:0.7rem;color:var(--text2)"><span style="width:9px;height:9px;border-radius:2px;background:#fbbf24;display:inline-block"></span>Awaiting Reply</span>
+            <span style="display:flex;align-items:center;gap:5px;font-size:0.7rem;color:var(--text2)"><span style="width:9px;height:9px;border-radius:2px;background:#6b7280;display:inline-block"></span>Not Yet Reached</span>
+          </div>
+        </div>
+      </div>
+      <div id="teamsCustomReport"></div>
+    </div>
+
+    <div class="gcard">
+      <p class="section-label"><i class="ti ti-table" aria-hidden="true"></i> Detailed Summary Table</p>
+      <table class="gtable">
+        <thead>
+          <tr><th>Category</th><th>Count</th><th>% of Total</th><th>Status</th></tr>
+        </thead>
+        <tbody id="summaryBody"></tbody>
+      </table>
+    </div>
+
+    <div class="report-footer" id="reportFooter"></div>
+  </div>
+
+  <div id="noReportMsg" style="text-align:center;padding:4rem 2rem;color:var(--text3)">
+    <i class="ti ti-chart-bar" style="font-size:3rem;display:block;margin-bottom:1rem;opacity:0.4" aria-hidden="true"></i>
+    <p style="font-size:1rem;font-weight:600;color:var(--text2)">No report generated yet</p>
+    <p style="font-size:0.82rem;margin-top:0.4rem">Fill in your data in the other tabs and click "Generate Full Report"</p>
+    <button class="btn-primary" onclick="switchTab('overall')" style="width:auto;display:inline-block;margin-top:1.5rem;padding:0.75rem 2rem">
+      <i class="ti ti-arrow-left" aria-hidden="true"></i> Go to Input
+    </button>
+  </div>
+</div>
+
+</div>
+
+<script>
+const CATS = [
+  { key:'completed',  label:'Completed',   color:'#34d399', glow:'rgba(52,211,153,0.3)',  icon:'ti-circle-check',  pillBg:'rgba(52,211,153,0.12)', pillC:'#34d399' },
+  { key:'inprogress', label:'In Progress', color:'#fbbf24', glow:'rgba(251,191,36,0.3)',  icon:'ti-loader-2',      pillBg:'rgba(251,191,36,0.12)', pillC:'#fbbf24' },
+  { key:'blocked',    label:'Blocked',     color:'#f87171', glow:'rgba(248,113,113,0.3)', icon:'ti-ban',           pillBg:'rgba(248,113,113,0.12)',pillC:'#f87171' },
+  { key:'failed',     label:'Failed',      color:'#f472b6', glow:'rgba(244,114,182,0.3)', icon:'ti-alert-triangle',pillBg:'rgba(244,114,182,0.12)',pillC:'#f472b6' },
+  { key:'notstarted', label:'Not Started', color:'#6b7280', glow:'rgba(107,114,128,0.2)', icon:'ti-clock',         pillBg:'rgba(107,114,128,0.12)',pillC:'#9ca3af' },
+];
+
+let platforms = [
+  { id:'orion',  name:'Orion',   icon:'ti-satellite',     color:'#818cf8', glow:'rgba(129,140,248,0.3)', total:150, completed:60, inprogress:30, blocked:5, failed:5 },
+  { id:'mobile', name:'Mobile',  icon:'ti-device-mobile', color:'#34d399', glow:'rgba(52,211,153,0.3)',  total:120, completed:40, inprogress:25, blocked:8, failed:3 },
+  { id:'webapp', name:'Web App', icon:'ti-world-www',     color:'#fbbf24', glow:'rgba(251,191,36,0.3)',  total:200, completed:90, inprogress:20, blocked:7, failed:2 },
+];
+let platformIdCounter = 10;
+let customFields = { overall: [], tech: [], teams: [] };
+let customFieldCounter = 0;
+const CUSTOM_COLORS = ['#a78bfa','#67e8f9','#fb923c','#4ade80','#e879f9','#38bdf8','#f59e0b','#10b981'];
+
+function addCustomField(section) {
+  const id = 'cf' + (++customFieldCounter);
+  const color = CUSTOM_COLORS[customFields[section].length % CUSTOM_COLORS.length];
+  customFields[section].push({ id, name: '', value: 0, color });
+  renderCustomFields(section);
+  setTimeout(() => { const el = document.getElementById('cfname-' + id); if (el) el.focus(); }, 50);
+}
+
+function removeCustomField(section, id) {
+  customFields[section] = customFields[section].filter(f => f.id !== id);
+  renderCustomFields(section);
+}
+
+function updateCustomField(section, id, field, val) {
+  const f = customFields[section].find(x => x.id === id);
+  if (!f) return;
+  if (field === 'value') f.value = Math.max(0, parseInt(val) || 0);
+  else f[field] = val;
+}
+
+function renderCustomFields(section) {
+  const wrap = document.getElementById(section + 'CustomFields');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  customFields[section].forEach(f => {
+    const row = document.createElement('div');
+    row.className = 'custom-field-row';
+    row.id = 'cfrow-' + f.id;
+    row.innerHTML = `
+      <input class="custom-field-name" id="cfname-${f.id}" type="text" placeholder="e.g. Not Feasible for Automation" value="${escHtml(f.name)}"
+        oninput="updateCustomField('${section}','${f.id}','name',this.value)">
+      <input class="custom-field-value" type="number" min="0" placeholder="0" value="${f.value}"
+        oninput="updateCustomField('${section}','${f.id}','value',this.value)">
+      <input class="custom-field-color" type="color" value="${f.color}"
+        oninput="updateCustomField('${section}','${f.id}','color',this.value)">
+      <button class="remove-field-btn" onclick="removeCustomField('${section}','${f.id}')" title="Remove field">
+        <i class="ti ti-x" aria-hidden="true"></i>
+      </button>`;
+    wrap.appendChild(row);
+  });
+}
+
+function escHtml(str) {
+  return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function renderCustomSectionInReport(section, containerId, totalRef) {
+  const wrap = document.getElementById(containerId);
+  if (!wrap) return;
+  const fields = customFields[section].filter(f => f.name.trim());
+  if (!fields.length) { wrap.innerHTML = ''; return; }
+
+  let ref = totalRef;
+  if (section === 'teams') {
+    const tc = +document.getElementById('tTestCases').value || 0;
+    if (tc > 0) ref = tc;
+  }
+
+  let cards = fields.map(f => {
+    const pct = ref > 0 ? Math.round((f.value / ref) * 100) : 0;
+    return `
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:0.75rem 0.9rem;position:relative;overflow:hidden;">
+      <div style="position:absolute;top:0;left:0;width:100%;height:2px;background:${f.color}"></div>
+      <div style="font-size:0.7rem;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">${escHtml(f.name)}</div>
+      <div style="font-size:1.4rem;font-weight:800;color:${f.color};line-height:1">${f.value}</div>
+      <div style="font-size:0.7rem;color:var(--text3);margin-top:2px">${pct}% of ${section === 'teams' ? 'test cases' : 'total'}</div>
+    </div>`;
+  }).join('');
+
+  wrap.innerHTML = `
+  <div class="custom-report-section">
+    <div class="custom-report-label"><i class="ti ti-tag" style="font-size:12px;vertical-align:-1px;margin-right:5px" aria-hidden="true"></i> Custom Fields</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:0.65rem">${cards}</div>
+  </div>`;
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.nav-tab').forEach((t,i) => {
+    t.classList.toggle('active', ['overall','tech','teams','report'][i] === name);
+  });
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+}
+
+function recalcNotStarted() {
+  const total = +document.getElementById('total').value || 0;
+  const sum = ['completed','inprogress','blocked','failed'].reduce((a,k) => a + (+document.getElementById(k).value||0), 0);
+  document.getElementById('notstarted').value = Math.max(0, total - sum);
+}
+['total','completed','inprogress','blocked','failed'].forEach(id =>
+  document.getElementById(id).addEventListener('input', recalcNotStarted)
+);
+
+function recalcTeams() {
+  const total     = +document.getElementById('tTotal').value || 0;
+  const reached   = Math.min(+document.getElementById('tReached').value || 0, total);
+  const responded = Math.min(+document.getElementById('tResponded').value || 0, reached);
+  const awaiting  = reached - responded;
+  const notReached= total - reached;
+  const testCases = +document.getElementById('tTestCases').value || 0;
+
+  document.getElementById('tAwaiting').value   = awaiting;
+  document.getElementById('tNotReached').value = notReached;
+
+  document.getElementById('sumTotal').textContent     = total;
+  document.getElementById('sumReached').textContent   = reached;
+  document.getElementById('sumResponded').textContent = responded;
+  document.getElementById('sumPending').textContent   = awaiting;
+  document.getElementById('sumNotReached').textContent= notReached;
+  document.getElementById('sumTestCases').textContent = testCases;
+
+  const responsePct = total > 0 ? Math.round((responded / total) * 100) : 0;
+  const circ = 2 * Math.PI * 42;
+  document.getElementById('teamDonutFill').style.strokeDasharray =
+    `${(responsePct/100)*circ} ${circ-(responsePct/100)*circ}`;
+  document.getElementById('teamDonutPct').textContent = responsePct + '%';
+
+  const rPct  = total > 0 ? (responded / total * 100) : 0;
+  const awPct = total > 0 ? (awaiting  / total * 100) : 0;
+  const nrPct = total > 0 ? (notReached/ total * 100) : 0;
+  document.getElementById('tBarResponded').style.width  = rPct  + '%';
+  document.getElementById('tBarAwaiting').style.width   = awPct + '%';
+  document.getElementById('tBarNotReached').style.width = nrPct + '%';
+}
+
+/* ── KEY FIX ──────────────────────────────────────────────────────────────
+   updatePlatform now also refreshes the "Not Started" readonly input for
+   the affected platform card directly in the DOM, so it stays in sync
+   without requiring a full re-render (which would steal focus mid-typing).
+────────────────────────────────────────────────────────────────────────── */
+function updatePlatform(id, field, val) {
+  const p = platforms.find(x => x.id === id);
+  if (!p) return;
+  p[field] = Math.max(0, parseInt(val) || 0);
+
+  const ns = Math.max(0, p.total - p.completed - p.inprogress - p.blocked - p.failed);
+  const nsInput = document.querySelector(`#pcard-${id} input[readonly]`);
+  if (nsInput) nsInput.value = ns;
+}
+
+function renderPlatformInputs() {
+  const wrap = document.getElementById('techCardsInput');
+  wrap.innerHTML = '';
+  platforms.forEach(p => {
+    const ns = Math.max(0, p.total - p.completed - p.inprogress - p.blocked - p.failed);
+    wrap.innerHTML += `
+    <div class="tech-card" id="pcard-${p.id}" style="border-color:rgba(${hexToRgb(p.color)},0.25);box-shadow:0 0 20px rgba(${hexToRgb(p.color)},0.07)">
+      <div class="tech-header">
+        <div class="tech-icon" style="background:rgba(${hexToRgb(p.color)},0.12);color:${p.color}">
+          <i class="ti ${p.icon}" aria-hidden="true"></i>
+        </div>
+        <div>
+          <div class="tech-title">${p.name}</div>
+          <div class="tech-subtitle">Automation Platform</div>
+        </div>
+        ${platforms.length > 1 ? `<button onclick="removePlatform('${p.id}')" style="margin-left:auto;background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px"><i class="ti ti-x" aria-hidden="true"></i></button>` : ''}
+      </div>
+      <div class="input-grid" style="gap:0.6rem">
+        <div class="input-group"><label style="font-size:0.68rem"><span class="cdot" style="background:${p.color}"></span>Total</label><input type="number" min="0" value="${p.total}" oninput="updatePlatform('${p.id}','total',this.value)"></div>
+        <div class="input-group"><label style="font-size:0.68rem"><span class="cdot" style="background:#34d399"></span>Done</label><input type="number" min="0" value="${p.completed}" oninput="updatePlatform('${p.id}','completed',this.value)"></div>
+        <div class="input-group"><label style="font-size:0.68rem"><span class="cdot" style="background:#fbbf24"></span>In Progress</label><input type="number" min="0" value="${p.inprogress}" oninput="updatePlatform('${p.id}','completed',this.value)" oninput="updatePlatform('${p.id}','inprogress',this.value)"></div>
+        <div class="input-group"><label style="font-size:0.68rem"><span class="cdot" style="background:#f87171"></span>Blocked</label><input type="number" min="0" value="${p.blocked}" oninput="updatePlatform('${p.id}','blocked',this.value)"></div>
+        <div class="input-group"><label style="font-size:0.68rem"><span class="cdot" style="background:#f472b6"></span>Failed</label><input type="number" min="0" value="${p.failed}" oninput="updatePlatform('${p.id}','failed',this.value)"></div>
+        <div class="input-group"><label style="font-size:0.68rem"><span class="cdot" style="background:#6b7280"></span>Not Started</label><input type="number" value="${ns}" readonly style="opacity:0.5"></div>
+      </div>
+    </div>`;
+  });
+}
+
+function addPlatform() {
+  const name = document.getElementById('newPlatformName').value.trim();
+  if (!name) return;
+  const colors = ['#a78bfa','#67e8f9','#fb923c','#4ade80','#e879f9'];
+  const icons  = ['ti-code','ti-api','ti-database','ti-cloud','ti-terminal'];
+  const idx = platforms.length % colors.length;
+  platforms.push({ id:'p'+platformIdCounter++, name, icon:icons[idx], color:colors[idx], glow:'', total:0, completed:0, inprogress:0, blocked:0, failed:0 });
+  document.getElementById('newPlatformName').value = '';
+  renderPlatformInputs();
+}
+
+function removePlatform(id) {
+  platforms = platforms.filter(p => p.id !== id);
+  renderPlatformInputs();
+}
+
+function generateReport() {
+  const total = +document.getElementById('total').value || 0;
+  const completed = +document.getElementById('completed').value || 0;
+  const inprogress = +document.getElementById('inprogress').value || 0;
+  const blocked = +document.getElementById('blocked').value || 0;
+  const failed = +document.getElementById('failed').value || 0;
+  const specified = completed + inprogress + blocked + failed;
+  const notstarted = Math.max(0, total - specified);
+
+  const err = document.getElementById('errorMsg');
+  if (total <= 0) { err.style.display='block'; err.textContent='Please enter a valid total number of test cases.'; return; }
+  if (specified > total) { err.style.display='block'; err.textContent=`Sum of categories (${specified}) exceeds total (${total}).`; return; }
+  err.style.display = 'none';
+
+  const data = { total, completed, inprogress, blocked, failed, notstarted };
+  const completedPct = Math.round((completed / total) * 100);
+  const circ = 2 * Math.PI * 66;
+
+  document.getElementById('noReportMsg').style.display = 'none';
+  document.getElementById('report').style.display = 'block';
+  document.getElementById('reportMeta').textContent =
+    `Generated ${new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})} · ${new Date().toLocaleTimeString()}`;
+
+  const fill = document.getElementById('donutFill');
+  const pctEl = document.getElementById('donutPct');
+  const donutColor = completedPct >= 75 ? '#34d399' : completedPct >= 40 ? '#fbbf24' : '#f87171';
+  fill.style.stroke = donutColor;
+  pctEl.style.color = donutColor;
+  setTimeout(() => {
+    fill.style.strokeDasharray = `${(completedPct/100)*circ} ${circ-(completedPct/100)*circ}`;
+    let c = 0;
+    const iv = setInterval(() => { pctEl.textContent=(c=Math.min(c+2,completedPct))+'%'; if(c>=completedPct)clearInterval(iv); }, 18);
+  }, 100);
+  document.getElementById('donutTitle').textContent = completedPct>=75?'🎉 On track!':completedPct>=40?'⏳ In progress':'⚠️ Needs attention';
+  document.getElementById('donutSub').textContent = `${completed} of ${total} automated`;
+
+  const miniGrid = document.getElementById('miniGrid');
+  miniGrid.innerHTML = '';
+  CATS.forEach((cat,i) => {
+    const val = data[cat.key];
+    const pct = total>0 ? Math.round((val/total)*100) : 0;
+    const mc = document.createElement('div');
+    mc.className = 'mini-card';
+    mc.style.animationDelay = i*0.07+'s';
+    mc.innerHTML = `
+      <div class="mini-icon" style="color:${cat.color}"><i class="ti ${cat.icon}" aria-hidden="true"></i></div>
+      <div class="mini-lbl">${cat.label}</div>
+      <div class="mini-val" style="color:${cat.color}">${val}</div>
+      <div class="mini-pct">${pct}% of total</div>`;
+    miniGrid.appendChild(mc);
+  });
+
+  const sb = document.getElementById('stackBar');
+  const sl = document.getElementById('stackLegend');
+  sb.innerHTML=''; sl.innerHTML='';
+  CATS.forEach(cat => {
+    const val = data[cat.key]; if(!val) return;
+    const pct = (val/total)*100;
+    const seg = document.createElement('div');
+    seg.className='stack-seg'; seg.style.background=cat.color; seg.title=`${cat.label}: ${val}`;
+    sb.appendChild(seg);
+    setTimeout(()=>{ seg.style.width=pct+'%'; }, 150);
+    sl.innerHTML += `<div class="leg-item"><span class="leg-dot" style="background:${cat.color}"></span>${cat.label} ${Math.round(pct)}%</div>`;
+  });
+
+  const pb = document.getElementById('progressBars');
+  pb.innerHTML = '';
+  CATS.forEach((cat,i) => {
+    const val = data[cat.key];
+    const pct = total>0?(val/total)*100:0;
+    pb.innerHTML += `
+    <div class="pbar-row" style="animation-delay:${i*0.08}s">
+      <div class="pbar-meta">
+        <span class="pbar-lbl"><i class="ti ${cat.icon}" style="color:${cat.color};font-size:15px" aria-hidden="true"></i>${cat.label}</span>
+        <span class="pbar-cnt" style="color:${cat.color}">${val} <span style="color:var(--text3);font-weight:400">/ ${total}</span></span>
+      </div>
+      <div class="pbar-track"><div class="pbar-fill" id="pbf-${cat.key}" style="background:${cat.color};box-shadow:0 0 8px ${cat.glow}"></div></div>
+    </div>`;
+    setTimeout(()=>{ const el=document.getElementById(`pbf-${cat.key}`); if(el)el.style.width=pct+'%'; }, 200+i*90);
+  });
+
+  renderCustomSectionInReport('overall', 'overallCustomReport', total);
+
+  const tg = document.getElementById('techReportGrid');
+  tg.innerHTML = '';
+  platforms.forEach((p,pi) => {
+    const ns = Math.max(0, p.total - p.completed - p.inprogress - p.blocked - p.failed);
+    const pct = p.total > 0 ? Math.round((p.completed/p.total)*100) : 0;
+    const circ2 = 2*Math.PI*20;
+    const fill2 = (pct/100)*circ2;
+    const bars = [
+      {label:'Completed',  val:p.completed,  color:'#34d399'},
+      {label:'In Progress',val:p.inprogress, color:'#fbbf24'},
+      {label:'Blocked',    val:p.blocked,    color:'#f87171'},
+      {label:'Failed',     val:p.failed,     color:'#f472b6'},
+      {label:'Not Started',val:ns,           color:'#6b7280'},
+    ];
+    const barsHtml = bars.map((b,bi) => `
+      <div style="margin-bottom:6px">
+        <div style="display:flex;justify-content:space-between;font-size:0.7rem;color:var(--text2);margin-bottom:3px">
+          <span>${b.label}</span><span style="color:${b.color};font-weight:700">${b.val}</span>
+        </div>
+        <div class="pbar-track" style="height:5px">
+          <div class="pbar-fill" id="tp-${p.id}-${bi}" style="background:${b.color}"></div>
+        </div>
+      </div>`).join('');
+    tg.innerHTML += `
+    <div class="tech-report-card" style="animation-delay:${pi*0.1}s;border-color:rgba(${hexToRgb(p.color)},0.25);box-shadow:0 0 20px rgba(${hexToRgb(p.color)},0.07)">
+      <div class="tech-report-header">
+        <div class="tech-mini-donut">
+          <svg width="52" height="52" viewBox="0 0 52 52" role="img" aria-label="${p.name} ${pct}% complete">
+            <circle fill="none" stroke="rgba(${hexToRgb(p.color)},0.15)" stroke-width="5" cx="26" cy="26" r="20"/>
+            <circle fill="none" stroke="${p.color}" stroke-width="5" stroke-linecap="round"
+              cx="26" cy="26" r="20" transform="rotate(-90 26 26)"
+              stroke-dasharray="${fill2} ${circ2-fill2}"/>
+          </svg>
+          <div class="tech-mini-pct" style="color:${p.color}">${pct}%</div>
+        </div>
+        <div>
+          <div style="font-size:0.95rem;font-weight:700;color:var(--text)">${p.name}</div>
+          <div style="font-size:0.7rem;color:var(--text3)">${p.total} total test cases</div>
+        </div>
+      </div>
+      ${barsHtml}
+    </div>`;
+    setTimeout(()=>{
+      bars.forEach((_,bi)=>{
+        const el = document.getElementById(`tp-${p.id}-${bi}`);
+        if(el && p.total>0) el.style.width=(bars[bi].val/p.total*100)+'%';
+      });
+    }, 300+pi*80);
+  });
+
+  const techTotal = platforms.reduce((s,p) => s + p.total, 0);
+  renderCustomSectionInReport('tech', 'techCustomReport', techTotal);
+
+  const tTotal2     = +document.getElementById('tTotal').value || 0;
+  const tReached2   = Math.min(+document.getElementById('tReached').value || 0, tTotal2);
+  const tResponded2 = Math.min(+document.getElementById('tResponded').value || 0, tReached2);
+  const tAwaiting2  = tReached2 - tResponded2;
+  const tNotReached2= tTotal2 - tReached2;
+  const tTestCases2 = +document.getElementById('tTestCases').value || 0;
+  const responsePct = tTotal2 > 0 ? Math.round((tResponded2 / tTotal2) * 100) : 0;
+
+  document.getElementById('rSumTotal').textContent     = tTotal2;
+  document.getElementById('rSumReached').textContent   = tReached2;
+  document.getElementById('rSumResponded').textContent = tResponded2;
+  document.getElementById('rSumPending').textContent   = tAwaiting2;
+  document.getElementById('rSumNotReached').textContent= tNotReached2;
+
+  const banner = document.getElementById('rTeamTCBanner');
+  const statsWrap = document.getElementById('rTeamTCStats');
+  if (tTestCases2 > 0) {
+    banner.style.display = 'flex';
+    statsWrap.innerHTML = `
+      <div class="team-tc-stat"><div class="team-tc-stat-val">${tTestCases2}</div><div class="team-tc-stat-lbl">Total Test Cases</div></div>
+      ${customFields.teams.filter(f=>f.name.trim()).map(f=>{
+        const pct = Math.round((f.value / tTestCases2) * 100);
+        return `<div class="team-tc-stat" style="background:rgba(${hexToRgb(f.color)},0.12)"><div class="team-tc-stat-val" style="color:${f.color}">${f.value}</div><div class="team-tc-stat-lbl">${escHtml(f.name)}<br><span style="color:${f.color}">${pct}%</span></div></div>`;
+      }).join('')}`;
+  } else {
+    banner.style.display = 'none';
+  }
+
+  const rCirc = 2 * Math.PI * 50;
+  setTimeout(() => {
+    document.getElementById('rDonutFill').style.strokeDasharray =
+      `${(responsePct/100)*rCirc} ${rCirc-(responsePct/100)*rCirc}`;
+    document.getElementById('rDonutPct').textContent = responsePct + '%';
+  }, 200);
+
+  const rT = tTotal2 > 0;
+  setTimeout(() => {
+    document.getElementById('rBarResponded').style.width  = (rT ? tResponded2/tTotal2*100 : 0) + '%';
+    document.getElementById('rBarAwaiting').style.width   = (rT ? tAwaiting2/tTotal2*100  : 0) + '%';
+    document.getElementById('rBarNotReached').style.width = (rT ? tNotReached2/tTotal2*100: 0) + '%';
+  }, 300);
+
+  renderCustomSectionInReport('teams', 'teamsCustomReport', tTotal2);
+
+  const tbody = document.getElementById('summaryBody');
+  tbody.innerHTML = '';
+  CATS.forEach(cat => {
+    const val = data[cat.key];
+    const pct = total>0?Math.round((val/total)*100):0;
+    tbody.innerHTML += `
+    <tr>
+      <td><i class="ti ${cat.icon}" style="color:${cat.color};vertical-align:-2px;margin-right:6px;font-size:14px" aria-hidden="true"></i>${cat.label}</td>
+      <td style="font-weight:700;color:${cat.color}">${val}</td>
+      <td style="color:var(--text)">${pct}%</td>
+      <td><span class="gpill" style="background:${cat.pillBg};color:${cat.pillC}">${cat.label}</span></td>
+    </tr>`;
+  });
+
+  if (customFields.teams.filter(f=>f.name.trim()).length) {
+    tbody.innerHTML += `<tr><td colspan="4" style="padding:0.4rem 0.75rem;font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text3);border-top:1px solid var(--border)">Team Custom Fields (% of ${tTestCases2 > 0 ? tTestCases2+' test cases' : 'total teams'})</td></tr>`;
+    customFields.teams.filter(f=>f.name.trim()).forEach(f => {
+      const ref = tTestCases2 > 0 ? tTestCases2 : tTotal2;
+      const pct = ref > 0 ? Math.round((f.value / ref) * 100) : 0;
+      tbody.innerHTML += `
+      <tr>
+        <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${f.color};margin-right:7px;vertical-align:1px"></span>${escHtml(f.name)}</td>
+        <td style="font-weight:700;color:${f.color}">${f.value}</td>
+        <td style="color:var(--text)">${pct}%</td>
+        <td><span class="gpill" style="background:rgba(99,102,241,0.1);color:${f.color}">Teams Custom</span></td>
+      </tr>`;
+    });
+  }
+
+  const otherCustom = [
+    ...customFields.overall.filter(f=>f.name.trim()).map(f=>({...f,section:'Overall',ref:total})),
+    ...customFields.tech.filter(f=>f.name.trim()).map(f=>({...f,section:'Technology',ref:techTotal})),
+  ];
+  if (otherCustom.length) {
+    tbody.innerHTML += `<tr><td colspan="4" style="padding:0.4rem 0.75rem;font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text3);border-top:1px solid var(--border)">Other Custom Fields</td></tr>`;
+    otherCustom.forEach(f => {
+      const pct = f.ref > 0 ? Math.round((f.value / f.ref) * 100) : 0;
+      tbody.innerHTML += `
+      <tr>
+        <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${f.color};margin-right:7px;vertical-align:1px"></span>${escHtml(f.name)} <span style="font-size:0.65rem;color:var(--text3)">(${f.section})</span></td>
+        <td style="font-weight:700;color:${f.color}">${f.value}</td>
+        <td style="color:var(--text)">—</td>
+        <td><span class="gpill" style="background:rgba(99,102,241,0.1);color:${f.color}">Custom</span></td>
+      </tr>`;
+    });
+  }
+
+  tbody.innerHTML += `
+  <tr style="border-top:1px solid var(--border)">
+    <td style="font-weight:700;color:var(--text)">Total</td>
+    <td style="font-weight:800;color:var(--purple)">${total}</td>
+    <td style="color:var(--text)">100%</td>
+    <td>—</td>
+  </tr>`;
+
+  document.getElementById('reportFooter').textContent =
+    `Generated ${new Date().toLocaleString()} · Automation Progress Tracker`;
+
+  switchTab('report');
+}
+
+function hexToRgb(hex) {
+  const r = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return r ? `${parseInt(r[1],16)},${parseInt(r[2],16)},${parseInt(r[3],16)}` : '99,102,241';
+}
+
+function seedDefaults() {
+  addCustomField('teams');
+  customFields.teams[0].name = 'Not Feasible for Automation';
+  customFields.teams[0].value = 8;
+  customFields.teams[0].color = '#f87171';
+  addCustomField('teams');
+  customFields.teams[1].name = 'Automation Support Not Needed';
+  customFields.teams[1].value = 5;
+  customFields.teams[1].color = '#fb923c';
+  renderCustomFields('teams');
+}
+
+renderPlatformInputs();
+recalcTeams();
+seedDefaults();
+generateReport();
+</script>
+</body>
+</html>
