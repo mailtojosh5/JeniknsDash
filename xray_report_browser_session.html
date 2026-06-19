@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Xray Test Report</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;600;700;800&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#06100d;--surface:#0b1f18;--card:#0e2820;
+  --border:rgba(72,187,120,0.12);--border2:rgba(72,187,120,0.05);
+  --cyan:#4fd1c5;--green:#48bb78;--red:#fc8181;
+  --yellow:#f6e05e;--orange:#f6ad55;--purple:#b794f4;
+  --blue:#63b3ed;--muted:#3d7a5e;--text:#e2f0eb;
+  --mono:'JetBrains Mono',monospace;--sans:'Inter',sans-serif;
+}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh;font-size:13px}
+
+/* ── TOP BAR ── */
+.bar{
+  background:#030c08;border-bottom:1px solid var(--border);
+  height:48px;display:flex;align-items:center;justify-content:space-between;
+  padding:0 24px;position:sticky;top:0;z-index:100;
+}
+.brand{font-weight:800;font-size:14px;display:flex;align-items:center;gap:9px;letter-spacing:-.01em}
+.brand-dot{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,#134d33,#48bb78);display:flex;align-items:center;justify-content:center;font-size:15px}
+.bar-right{display:flex;align-items:center;gap:10px}
+.chip{font-size:10px;font-weight:600;padding:3px 10px;border-radius:20px;border:1px solid var(--border);color:var(--muted);font-family:var(--mono)}
+.btn-sm{padding:4px 12px;border-radius:6px;font-size:11px;font-weight:600;border:1px solid var(--border);background:transparent;color:var(--cyan);cursor:pointer;font-family:var(--sans);transition:background .15s}
+.btn-sm:hover{background:var(--surface)}
+
+/* ── AUTH SCREEN ── */
+#auth-screen{display:flex;align-items:center;justify-content:center;min-height:calc(100vh - 48px);padding:32px 20px}
+.auth-box{width:100%;max-width:580px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:32px 36px}
+.auth-box h2{font-size:20px;font-weight:800;color:var(--cyan);margin-bottom:6px}
+.auth-box p{color:var(--muted);font-size:13px;margin-bottom:22px;line-height:1.6}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+@media(max-width:500px){.field-row{grid-template-columns:1fr}}
+.field{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
+.field label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em}
+.field input,.field select{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:9px 12px;color:var(--text);font-family:var(--mono);font-size:11.5px;outline:none;transition:border .2s}
+.field input:focus,.field select:focus{border-color:var(--cyan)}
+.field input::placeholder{color:var(--muted)}
+.field select option{background:var(--bg)}
+.spaces-input-wrap{position:relative}
+.spaces-pills{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;min-height:24px}
+.space-pill{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:12px;background:rgba(72,187,120,0.12);border:1px solid rgba(72,187,120,0.25);color:#68d391;font-size:10px;font-family:var(--mono);cursor:pointer}
+.space-pill:hover{background:rgba(252,129,129,0.1);border-color:rgba(252,129,129,0.3);color:#fc8181}
+.auth-actions{display:flex;gap:10px;margin-top:16px;align-items:center;flex-wrap:wrap}
+.btn-go{padding:11px 30px;background:linear-gradient(135deg,#134d33,#48bb78);border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--sans);transition:opacity .15s}
+.btn-go:hover{opacity:.88}
+.btn-demo{padding:11px 18px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--muted);font-size:12px;font-weight:500;cursor:pointer;font-family:var(--sans);transition:all .15s}
+.btn-demo:hover{color:var(--cyan);border-color:var(--cyan)}
+.err{margin-top:12px;padding:10px 14px;border-radius:7px;font-size:12px;display:none;background:rgba(252,129,129,0.08);border:1px solid rgba(252,129,129,0.25);color:var(--red)}
+.info-box{margin-top:16px;padding:10px 14px;border-radius:7px;font-size:11px;line-height:1.6;background:rgba(72,187,120,0.05);border:1px solid rgba(72,187,120,0.15);color:var(--muted);font-family:var(--mono)}
+.loading{display:none;margin-top:12px;font-size:12px;color:var(--cyan);font-family:var(--mono);animation:pulse 1.2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* ── DASHBOARD SHELL ── */
+#dash{display:none}
+
+/* ── SPACE SIDEBAR + CONTENT ── */
+.dash-layout{display:flex;min-height:calc(100vh - 48px)}
+
+.sidebar{
+  width:220px;flex-shrink:0;background:#030c08;border-right:1px solid var(--border);
+  padding:14px 0;position:sticky;top:48px;height:calc(100vh - 48px);overflow-y:auto;
+}
+.sidebar::-webkit-scrollbar{width:3px}
+.sidebar::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.sb-label{font-size:8.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;padding:0 14px;margin-bottom:6px}
+.sb-item{
+  display:flex;align-items:center;gap:8px;padding:7px 14px;cursor:pointer;
+  font-size:12px;font-weight:500;transition:background .12s;position:relative;
+}
+.sb-item:hover{background:rgba(72,187,120,0.04)}
+.sb-item.active{background:rgba(72,187,120,0.07);color:var(--cyan)}
+.sb-item.active::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--cyan)}
+.sb-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.sb-badge{margin-left:auto;font-size:9px;font-family:var(--mono);color:var(--muted)}
+.sb-divider{height:1px;background:var(--border2);margin:8px 14px}
+
+.main-content{flex:1;padding:18px 22px 40px;min-width:0}
+
+/* ── SPACE HEADER ── */
+.space-hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;flex-wrap:wrap;gap:10px}
+.space-title{font-size:17px;font-weight:800;letter-spacing:-.02em;display:flex;align-items:center;gap:8px}
+.space-meta{font-size:11px;color:var(--muted);margin-top:3px;font-family:var(--mono)}
+.health-badge{font-size:10px;font-weight:700;padding:4px 12px;border-radius:20px;display:inline-flex;align-items:center;gap:5px}
+.hb-good{background:rgba(72,187,120,0.12);color:#68d391;border:1px solid rgba(72,187,120,0.25)}
+.hb-warn{background:rgba(246,173,85,0.12);color:#f6ad55;border:1px solid rgba(246,173,85,0.25)}
+.hb-bad {background:rgba(252,129,129,0.12);color:#fc8181;border:1px solid rgba(252,129,129,0.25)}
+
+/* ── OVERVIEW GRID ── */
+.overview-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-bottom:12px}
+.overview-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:10px;
+  padding:14px 16px;cursor:pointer;transition:border-color .15s,transform .1s;
+}
+.overview-card:hover{border-color:rgba(72,187,120,0.35);transform:translateY(-1px)}
+.oc-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.oc-key{font-family:var(--mono);font-size:11px;color:var(--cyan);font-weight:600}
+.oc-title{font-size:12px;font-weight:700;margin-bottom:2px}
+.oc-sub{font-size:10px;color:var(--muted);font-family:var(--mono)}
+.oc-bar{height:4px;border-radius:2px;background:rgba(255,255,255,0.05);overflow:hidden;margin-top:10px}
+.oc-fill{height:100%;border-radius:2px}
+.oc-stats{display:flex;gap:10px;margin-top:8px}
+.oc-stat{font-size:9px;font-family:var(--mono)}
+
+/* ── KPI STRIP ── */
+.kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:14px}
+@media(max-width:900px){.kpis{grid-template-columns:repeat(3,1fr)}}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:13px 15px 11px;position:relative;overflow:hidden}
+.kpi::after{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.kpi.cy::after{background:var(--cyan)}.kpi.gn::after{background:var(--green)}
+.kpi.rd::after{background:var(--red)}.kpi.yw::after{background:var(--yellow)}
+.kpi.pp::after{background:var(--purple)}.kpi.bl::after{background:var(--blue)}
+.kpi-l{font-size:8.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.09em;margin-bottom:4px}
+.kpi-v{font-size:27px;font-weight:800;font-family:var(--mono);line-height:1}
+.kpi.cy .kpi-v{color:var(--cyan)}.kpi.gn .kpi-v{color:var(--green)}
+.kpi.rd .kpi-v{color:var(--red)}.kpi.yw .kpi-v{color:var(--yellow)}
+.kpi.pp .kpi-v{color:var(--purple)}.kpi.bl .kpi-v{color:var(--blue)}
+.kpi-s{font-size:9.5px;color:var(--muted);margin-top:3px}
+
+/* ── PANELS ── */
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
+.ph{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.09em;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border2);display:flex;justify-content:space-between;align-items:center}
+.ph-tag{font-size:9px;font-weight:600;padding:1px 7px;border-radius:10px;background:rgba(72,187,120,0.08);color:var(--cyan)}
+
+/* ── LAYOUTS ── */
+.g3{display:grid;grid-template-columns:190px 1fr 1fr;gap:12px;margin-bottom:12px}
+.g2{display:grid;grid-template-columns:1.7fr 1fr;gap:12px;margin-bottom:12px}
+.g2b{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.g1{margin-bottom:12px}
+@media(max-width:900px){.g3,.g2,.g2b{grid-template-columns:1fr}}
+
+/* ── DONUT ── */
+.donut-wrap{position:relative;display:flex;align-items:center;justify-content:center;height:140px}
+.donut-center{position:absolute;text-align:center;pointer-events:none}
+.donut-pct{font-size:22px;font-weight:800;font-family:var(--mono);color:var(--green)}
+.donut-lbl{font-size:9px;color:var(--muted)}
+.legend{margin-top:8px}
+.lr{display:flex;align-items:center;gap:7px;font-size:11px;margin-bottom:4px}
+.ld{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.lv{margin-left:auto;font-family:var(--mono);font-size:10px;font-weight:600}
+
+/* ── PILLS ── */
+.pill{display:inline-flex;align-items:center;padding:2px 7px;border-radius:20px;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.p-PASS   {background:rgba(72,187,120,0.12);color:#68d391;border:1px solid rgba(72,187,120,0.20)}
+.p-FAIL   {background:rgba(252,129,129,0.12);color:#fc8181;border:1px solid rgba(252,129,129,0.20)}
+.p-TODO   {background:rgba(74,126,160,0.10);color:#63b3ed;border:1px solid rgba(99,179,237,0.18)}
+.p-ABORTED{background:rgba(246,224,94,0.10);color:#f6e05e;border:1px solid rgba(246,224,94,0.18)}
+.p-BLOCKED{background:rgba(246,173,85,0.10);color:#f6ad55;border:1px solid rgba(246,173,85,0.18)}
+.p-EXECUTING{background:rgba(79,209,197,0.10);color:#4fd1c5;border:1px solid rgba(79,209,197,0.18)}
+
+/* ── PROGRESS BARS ── */
+.pbar-row{margin-bottom:7px}
+.pbar-label{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-bottom:3px}
+.pbar-label span:last-child{font-family:var(--mono)}
+.pbar-bg{height:5px;background:rgba(255,255,255,0.05);border-radius:3px;overflow:hidden}
+.pbar-fill{height:100%;border-radius:3px;transition:width .6s ease}
+
+/* ── ASSIGNEE ── */
+.ab{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.an{width:90px;font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.abar{flex:1;height:13px;background:rgba(255,255,255,0.04);border-radius:3px;overflow:hidden}
+.abar-inner{height:100%;display:flex}
+.abar-seg{height:100%;display:flex;align-items:center;justify-content:center;font-size:8px;min-width:0}
+.av{width:60px;text-align:right;font-family:var(--mono);font-size:9px;color:var(--muted)}
+
+/* ── DEFECTS ── */
+.defect-row{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border2)}
+.defect-row:last-child{border-bottom:none}
+.defect-key{font-family:var(--mono);font-size:10px;color:var(--cyan);min-width:75px}
+.defect-sum{flex:1;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.defect-cnt{font-family:var(--mono);font-size:9px;color:var(--muted);min-width:58px;text-align:right}
+
+/* ── PLAN BLOCKS ── */
+.plan-block{border:1px solid var(--border);border-radius:8px;margin-bottom:8px;overflow:hidden}
+.plan-hdr{background:rgba(72,187,120,0.04);padding:8px 12px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;border-bottom:1px solid var(--border2)}
+.plan-hdr:hover{background:rgba(72,187,120,0.07)}
+.plan-name{font-size:11px;font-weight:600}
+.plan-stats{display:flex;gap:8px;align-items:center}
+.plan-stat{font-size:9px;font-family:var(--mono)}
+.plan-body{padding:8px 12px;display:none}
+.plan-body.open{display:block}
+.exec-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border2);font-size:10px}
+.exec-row:last-child{border-bottom:none}
+.exec-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.exec-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+
+/* ── TABLE ── */
+.tw{overflow-x:auto;max-height:300px;overflow-y:auto}
+.tw::-webkit-scrollbar{width:4px;height:4px}
+.tw::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+table{width:100%;border-collapse:collapse;font-size:11px}
+thead th{position:sticky;top:0;background:var(--surface);font-size:8.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;padding:0 8px 7px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
+tbody td{padding:6px 8px;border-bottom:1px solid var(--border2);vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:rgba(72,187,120,0.025)}
+.mono{font-family:var(--mono);font-size:10px}
+.sbar{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:4px 10px;color:var(--text);font-size:11px;font-family:var(--sans);outline:none;width:140px;transition:border .2s}
+.sbar:focus{border-color:var(--cyan)}
+.sbar::placeholder{color:var(--muted)}
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="bar">
+  <div class="brand"><div class="brand-dot">✓</div>Xray Test Report</div>
+  <div class="bar-right">
+    <span class="chip" id="bar-date"></span>
+    <button class="btn-sm" id="btn-back" style="display:none" onclick="reset()">← New Report</button>
+  </div>
+</div>
+
+<!-- AUTH SCREEN -->
+<div id="auth-screen">
+  <div class="auth-box">
+    <h2>Connect to Xray (Browser Session)</h2>
+    <p>Enter your Jira URL and project keys, then click <strong>Step 1</strong> to log in via your browser. Once you're logged in, return here and click <strong>Step 2</strong> to fetch the report using your browser session — no API keys needed.</p>
+
+    <div class="field-row">
+      <div class="field">
+        <label>Jira Base URL</label>
+        <input id="jira-url" placeholder="https://your-org.atlassian.net"/>
+      </div>
+      <div class="field">
+        <label>Date Range</label>
+        <select id="date-range">
+          <option value="7">Last 7 days</option>
+          <option value="14">Last 14 days</option>
+          <option value="30" selected>Last 30 days</option>
+          <option value="90">Last 90 days</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Spaces (Project Keys) — press Enter to add each</label>
+      <input id="space-input" placeholder="Type a project key, e.g. QA, then Enter" onkeydown="addSpace(event)"/>
+      <div class="spaces-pills" id="spaces-pills"></div>
+    </div>
+
+    <div class="auth-actions">
+      <button class="btn-demo" onclick="openJiraLogin()" style="color:var(--yellow);border-color:var(--yellow)">① Open Jira Login ↗</button>
+      <button class="btn-go" onclick="fetchAndRender()">② Fetch & Generate →</button>
+      <button class="btn-demo" onclick="demo()">Load sample data</button>
+    </div>
+    <div class="loading" id="loading">⏳ Fetching Xray data across spaces…</div>
+    <div class="err" id="err"></div>
+    <div class="info-box">
+      <strong>How it works:</strong><br>
+      1. Enter your Jira URL and project keys above.<br>
+      2. Click <strong>① Open Jira Login</strong> — this opens Jira in a new tab so your browser gets a session cookie.<br>
+      3. Log in to Jira in that tab, then come back here.<br>
+      4. Click <strong>② Fetch &amp; Generate</strong> — calls the Xray REST API on your Jira server using your browser session (no proxy issue, no API keys needed).<br><br>
+      ⚠ This page must be opened from the <strong>same origin</strong> as your Jira server, or served locally alongside it. If you see CORS errors, use the <em>browser extension</em> or host this file on your Jira server.
+    </div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dash">
+  <div class="dash-layout">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <div class="sb-label">Spaces</div>
+      <div id="sb-all" class="sb-item active" onclick="showView('overview')">
+        <div class="sb-dot" style="background:var(--cyan)"></div>
+        <span>All Spaces</span>
+        <span class="sb-badge" id="sb-total">—</span>
+      </div>
+      <div class="sb-divider"></div>
+      <div id="sb-spaces"></div>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div class="main-content" id="main-content">
+      <!-- populated by JS -->
+    </div>
+
+  </div>
+</div>
+
+<script>
+Chart.defaults.color='#3d7a5e';
+Chart.defaults.font.family="'Inter',sans-serif";
+Chart.defaults.font.size=10;
+const C={};
+function kill(k){if(C[k]){C[k].destroy();delete C[k];}}
+const pct=(a,b)=>b?Math.round(a/b*100):0;
+const fmtDate=ts=>ts?new Date(ts).toLocaleDateString(undefined,{month:'short',day:'numeric'}):'—';
+const SC={PASS:'#68d391',FAIL:'#fc8181',TODO:'#63b3ed',BLOCKED:'#f6ad55',EXECUTING:'#4fd1c5',ABORTED:'#f6e05e'};
+
+// Space key pill input
+const _spaces=[];
+function addSpace(e){
+  if(e.key!=='Enter') return;
+  const v=e.target.value.trim().toUpperCase();
+  if(!v||_spaces.includes(v)) return;
+  _spaces.push(v);
+  renderSpacePills();
+  e.target.value='';
+}
+function removeSpace(k){
+  const i=_spaces.indexOf(k);
+  if(i>-1) _spaces.splice(i,1);
+  renderSpacePills();
+}
+function renderSpacePills(){
+  document.getElementById('spaces-pills').innerHTML=_spaces.map(k=>
+    `<span class="space-pill" onclick="removeSpace('${k}')">${k} ×</span>`).join('');
+}
+
+// Space accent colors
+const SPACE_COLORS=['#4fd1c5','#b794f4','#f6ad55','#63b3ed','#68d391','#fc8181','#f6e05e','#a3bffa'];
+
+// ── AUTH / FETCH (Browser-session mode — no API keys, no xray.cloud calls) ──
+//
+// Strategy: use Jira's own REST API + Xray for Jira REST API
+// All requests go to YOUR Jira base URL so the corporate proxy allows them.
+// The browser automatically sends the Jira session cookie (credentials:'include').
+//
+// Xray for Jira REST endpoints used:
+//   GET /rest/raven/1.0/api/testexecution?projectKey=X   — list test executions
+//   GET /rest/raven/1.0/api/testrun?testExecIssueKey=X   — runs for an execution
+//   GET /rest/api/2/search?jql=...                        — requirements (stories/epics)
+// These work for Xray for Jira (Server/DC). For Jira Cloud + Xray Cloud, see note below.
+
+function openJiraLogin(){
+  const url=document.getElementById('jira-url').value.trim().replace(/\/$/,'');
+  if(!url){showErr('Enter your Jira Base URL first.');return;}
+  window.open(url,'_blank');
+}
+
+async function fetchAndRender(){
+  const url=document.getElementById('jira-url').value.trim().replace(/\/$/,'');
+  const days=parseInt(document.getElementById('date-range').value);
+  if(!url){showErr('Enter your Jira Base URL.');return;}
+  if(_spaces.length===0){showErr('Add at least one project key (Space).');return;}
+
+  const loading=document.getElementById('loading');
+  loading.style.display='block'; hideErr();
+  try{
+    // Verify session is active by hitting /rest/api/2/myself
+    const me=await jiraGet(url,'/rest/api/2/myself');
+    if(me.errorMessages&&me.errorMessages.length) throw new Error('Not logged in to Jira. Click "Open Jira Login" first and log in, then try again.');
+
+    const spaceData=await Promise.all(_spaces.map(proj=>fetchSpace(url,proj,days)));
+    render(spaceData,days);
+  }catch(e){showErr('Error: '+e.message);}
+  finally{loading.style.display='none';}
+}
+
+// Low-level GET with browser session cookies
+async function jiraGet(base,path){
+  const res=await fetch(base+path,{
+    credentials:'include',
+    headers:{'Accept':'application/json','X-Atlassian-Token':'no-check'}
+  });
+  if(res.status===401||res.status===403) throw new Error('Not logged in to Jira. Click "① Open Jira Login", log in, then click "② Fetch & Generate".');
+  if(!res.ok) throw new Error(`Jira API error ${res.status} on ${path}`);
+  return res.json();
+}
+
+async function fetchSpace(base,project,days){
+  const since=new Date(Date.now()-days*86400000).toISOString().slice(0,10);
+
+  // 1. Fetch test executions for this project via Xray REST
+  //    Works for Xray for Jira Server/DC: /rest/raven/1.0/api/testexecution
+  //    For Xray Cloud on Jira Cloud, the endpoint differs (see info box note).
+  let executions=[];
+  try{
+    // Try Xray for Jira Server/DC endpoint first
+    const execRes=await jiraGet(base,
+      `/rest/raven/1.0/api/testexecution?projectKey=${encodeURIComponent(project)}&fields=summary,status,assignee&limit=100`);
+    executions=Array.isArray(execRes)?execRes:(execRes.executions||execRes.results||[]);
+  }catch(e){
+    // Fallback: search via Jira REST for Test Execution issue type
+    const jql=`project="${project}" AND issuetype="Test Execution" AND created>="${since}"`;
+    const searchRes=await jiraGet(base,`/rest/api/2/search?jql=${encodeURIComponent(jql)}&maxResults=100&fields=summary,status,assignee`);
+    executions=(searchRes.issues||[]).map(i=>({id:i.id,key:i.key,summary:i.fields.summary}));
+  }
+
+  // 2. For each execution, fetch its test runs
+  const runs=[];
+  const plansMap={};
+  for(const exec of executions.slice(0,50)){
+    const execKey=exec.key||exec.issueKey||exec.id;
+    const execSummary=exec.summary||(exec.fields&&exec.fields.summary)||execKey;
+    try{
+      const runRes=await jiraGet(base,`/rest/raven/1.0/api/testrun?testExecIssueKey=${encodeURIComponent(execKey)}`);
+      const runList=Array.isArray(runRes)?runRes:(runRes.testRuns||runRes.runs||[]);
+      runList.forEach(run=>{
+        runs.push({
+          testKey:run.testKey||run.issueKey||'?',
+          testSummary:run.summary||run.testSummary||'(unknown)',
+          status:(run.status||'TODO').toString().toUpperCase().replace(/\s+/g,'_'),
+          execKey,execSummary,
+          assignee:run.assignee||(run.assigneeDetail&&run.assigneeDetail.displayName)||'Unassigned',
+          defects:(run.defects||[]).map(d=>({key:d.key||d.id||'?',summary:d.summary||'',status:d.status||'Open'})),
+          finishedOn:run.finishedOn?new Date(run.finishedOn).getTime():(run.executedOn?new Date(run.executedOn).getTime():null),
+          planKeys:[],
+        });
+      });
+    }catch(_){}
+  }
+
+  // 3. Fetch requirements (Stories / Epics) via Jira search
+  let requirements=[];
+  try{
+    const jql=`project="${project}" AND issuetype in (Story,Requirement,Epic)`;
+    const reqRes=await jiraGet(base,`/rest/api/2/search?jql=${encodeURIComponent(jql)}&maxResults=200&fields=summary,status`);
+    requirements=(reqRes.issues||[]).map(i=>({
+      jira:{key:i.key,summary:i.fields.summary},
+      testCoverage:{status:'UNKNOWN'}
+    }));
+    // Try to get Xray coverage info for each requirement
+    for(const req of requirements.slice(0,30)){
+      try{
+        const cov=await jiraGet(base,`/rest/raven/1.0/api/requirement/${encodeURIComponent(req.jira.key)}/teststatus`);
+        if(cov.testStatus) req.testCoverage.status=cov.testStatus.toUpperCase();
+      }catch(_){}
+    }
+  }catch(_){}
+
+  return{project,runs,plansMap:Object.values(plansMap),requirements};
+}
+
+
+
+// ── DEMO ─────────────────────────────────────────────────────
+function demo(){
+  const spaces=[
+    {project:'QA',label:'QA Core',tests:['Login Flow','Password Reset','2FA','Session Timeout','SSO Integration','Role Permissions'],assignees:['Alice Chen','Bob Patel'],defectPool:[{key:'QA-112',summary:'Login fails on Safari 17'},{key:'QA-118',summary:'Redirect loop in SSO'}]},
+    {project:'SHOP',label:'Shopping',tests:['Product Search','Add to Cart','Checkout','Order Confirmation','Refund Processing','Inventory Update','Multi-currency'],assignees:['Carol Kim','David Osei'],defectPool:[{key:'SHOP-44',summary:'Cart total incorrect for discounts'},{key:'SHOP-51',summary:'Null pointer in refund flow'}]},
+    {project:'PLAT',label:'Platform',tests:['Email Notifications','PDF Export','API Rate Limiting','Data Import','Audit Logging','Bulk Operations','Report Generation'],assignees:['Eve Müller','Frank Lin'],defectPool:[{key:'PLAT-9',summary:'PDF export hangs on large data'},{key:'PLAT-17',summary:'Rate limit not applied to admin'}]},
+  ];
+  const statuses=['PASS','PASS','PASS','FAIL','TODO','BLOCKED'];
+  const plans=[
+    {key:'PLAN-1',summary:'Q2 Regression Suite',executions:[{key:'EXEC-10',summary:'Regression Run #10'},{key:'EXEC-11',summary:'Hotfix Run'}]},
+    {key:'PLAN-2',summary:'Sprint 8 Execution',executions:[{key:'EXEC-20',summary:'Sprint 8 – Full'}]},
+  ];
+  const now=Date.now();
+  const spaceData=spaces.map(sp=>{
+    const runs=sp.tests.map((t,i)=>{
+      const st=statuses[Math.floor(Math.abs(Math.sin(i*7+sp.project.charCodeAt(0)))*statuses.length)];
+      const assignee=sp.assignees[i%sp.assignees.length];
+      const defs=st==='FAIL'?[sp.defectPool[i%sp.defectPool.length]]:[];
+      return{
+        testKey:`${sp.project}-T${100+i}`,testSummary:t,status:st,
+        execKey:'EXEC-'+(10+i%3*10),execSummary:`Execution #${10+i%3*10}`,
+        assignee,defects:defs,
+        finishedOn:now-Math.floor(Math.abs(Math.sin(i*4))*29*86400000),
+        planKeys:['PLAN-1'],
+      };
+    });
+    const reqs=['Authentication','Shopping cart','Checkout flow','Notifications','Reporting','Admin panel'].map((s,i)=>({
+      jira:{key:`${sp.project}-R${i+1}`,summary:s},
+      testCoverage:{status:['COVERED','COVERED','PARTIAL','UNCOVERED','COVERED','PARTIAL'][i]}
+    }));
+    return{project:sp.project,runs,plansMap:plans,requirements:reqs};
+  });
+  render(spaceData,30);
+}
+
+// ── RENDER ────────────────────────────────────────────────────
+let _data=[];
+let _currentView='overview';
+
+function render(spaceData,days){
+  _data=spaceData;
+  document.getElementById('auth-screen').style.display='none';
+  document.getElementById('dash').style.display='block';
+  document.getElementById('btn-back').style.display='';
+
+  // Sidebar spaces
+  const sbEl=document.getElementById('sb-spaces');
+  sbEl.innerHTML=spaceData.map((sp,i)=>{
+    const pass=sp.runs.filter(r=>r.status==='PASS').length;
+    const tot=sp.runs.length||1;
+    const rate=pct(pass,tot);
+    const col=SPACE_COLORS[i%SPACE_COLORS.length];
+    const dotColor=rate>=90?'#68d391':rate>=60?'#f6ad55':'#fc8181';
+    return`<div class="sb-item" id="sb-${sp.project}" onclick="showView('${sp.project}')">
+      <div class="sb-dot" style="background:${col}"></div>
+      <span>${sp.project}</span>
+      <span class="sb-badge" style="color:${dotColor}">${rate}%</span>
+    </div>`;
+  }).join('');
+
+  const allRuns=spaceData.flatMap(s=>s.runs);
+  document.getElementById('sb-total').textContent=allRuns.length;
+
+  const ts=allRuns.map(r=>r.finishedOn).filter(Boolean);
+  const lo=ts.length?Math.min(...ts):Date.now();
+  const hi=ts.length?Math.max(...ts):Date.now();
+  document.getElementById('bar-date').textContent=`${fmtDate(lo)} – ${fmtDate(hi)}`;
+
+  showView('overview');
+}
+
+function showView(key){
+  _currentView=key;
+  // Sidebar active state
+  document.querySelectorAll('.sb-item').forEach(el=>el.classList.remove('active'));
+  const target=document.getElementById(key==='overview'?'sb-all':'sb-'+key);
+  if(target) target.classList.add('active');
+
+  // Kill all charts
+  Object.keys(C).forEach(k=>kill(k));
+
+  if(key==='overview') renderOverview();
+  else renderSpace(_data.find(s=>s.project===key));
+}
+
+// ── OVERVIEW ─────────────────────────────────────────────────
+function renderOverview(){
+  const allRuns=_data.flatMap(s=>s.runs);
+  const totalPass=allRuns.filter(r=>r.status==='PASS').length;
+  const totalFail=allRuns.filter(r=>r.status==='FAIL').length;
+  const totalTodo=allRuns.filter(r=>r.status==='TODO').length;
+  const totalTot=allRuns.length||1;
+  const overallRate=pct(totalPass,totalTot);
+
+  const mc=document.getElementById('main-content');
+  mc.innerHTML=`
+    <div class="space-hdr">
+      <div>
+        <div class="space-title">All Spaces Overview</div>
+        <div class="space-meta">${_data.length} spaces · ${allRuns.length} total test runs</div>
+      </div>
+      <span class="health-badge ${overallRate>=90?'hb-good':overallRate>=60?'hb-warn':'hb-bad'}">● ${overallRate}% overall pass rate</span>
+    </div>
+
+    <!-- space cards -->
+    <div class="overview-grid" id="overview-cards"></div>
+
+    <!-- overall charts -->
+    <div class="g2b">
+      <div class="panel">
+        <div class="ph">Pass Rate by Space</div>
+        <canvas id="ov-bar" height="160"></canvas>
+      </div>
+      <div class="panel">
+        <div class="ph">Overall Status Distribution</div>
+        <div class="donut-wrap">
+          <canvas id="ov-donut" width="130" height="130"></canvas>
+          <div class="donut-center"><div class="donut-pct" id="ov-dpct">${overallRate}%</div><div class="donut-lbl">pass</div></div>
+        </div>
+        <div class="legend" id="ov-leg"></div>
+      </div>
+    </div>
+
+    <!-- space comparison table -->
+    <div class="g1">
+      <div class="panel">
+        <div class="ph">Space Comparison</div>
+        <div class="tw">
+          <table><thead><tr>
+            <th>Space</th><th>Total Tests</th><th>Pass</th><th>Fail</th><th>TODO/Other</th><th>Pass Rate</th><th>Executions</th><th>Open Defects</th>
+          </tr></thead>
+          <tbody id="ov-tbl"></tbody></table>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Cards
+  document.getElementById('overview-cards').innerHTML=_data.map((sp,i)=>{
+    const pass=sp.runs.filter(r=>r.status==='PASS').length;
+    const fail=sp.runs.filter(r=>r.status==='FAIL').length;
+    const tot=sp.runs.length||1;
+    const rate=pct(pass,tot);
+    const col=SPACE_COLORS[i%SPACE_COLORS.length];
+    const defs=[...new Map(sp.runs.flatMap(r=>r.defects).map(d=>[d.key,d])).values()];
+    return`<div class="overview-card" onclick="showView('${sp.project}')">
+      <div class="oc-top">
+        <span class="oc-key" style="color:${col}">${sp.project}</span>
+        <span class="health-badge ${rate>=90?'hb-good':rate>=60?'hb-warn':'hb-bad'}">● ${rate}%</span>
+      </div>
+      <div class="oc-title">${sp.project}</div>
+      <div class="oc-sub">${sp.runs.length} runs · ${defs.length} defects · ${sp.requirements.length} reqs</div>
+      <div class="oc-bar"><div class="oc-fill" style="width:${rate}%;background:${rate>=90?'#68d391':rate>=60?'#f6ad55':'#fc8181'}"></div></div>
+      <div class="oc-stats">
+        <span class="oc-stat" style="color:#68d391">✓ ${pass}</span>
+        <span class="oc-stat" style="color:#fc8181">✗ ${fail}</span>
+        <span class="oc-stat" style="color:#63b3ed">◌ ${tot-pass-fail}</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Bar chart
+  const labels=_data.map(s=>s.project);
+  const rates=_data.map(s=>pct(s.runs.filter(r=>r.status==='PASS').length,s.runs.length||1));
+  C['ov-bar']=new Chart(document.getElementById('ov-bar'),{
+    type:'bar',
+    data:{labels,datasets:[{label:'Pass %',data:rates,
+      backgroundColor:rates.map(r=>r>=90?'rgba(104,211,145,.75)':r>=60?'rgba(246,173,85,.75)':'rgba(252,129,129,.75)'),
+      borderRadius:4}]},
+    options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.raw}%`}}},
+      scales:{x:{grid:{color:'rgba(255,255,255,.03)'}},y:{max:100,beginAtZero:true,grid:{color:'rgba(255,255,255,.03)'},ticks:{callback:v=>v+'%'}}},
+      animation:{duration:400}},
+  });
+
+  // Donut
+  const statusGroups={PASS:0,FAIL:0,TODO:0,BLOCKED:0,EXECUTING:0,ABORTED:0};
+  allRuns.forEach(r=>{statusGroups[r.status]=(statusGroups[r.status]||0)+1;});
+  const dData=Object.entries(statusGroups).filter(([,v])=>v>0);
+  C['ov-donut']=new Chart(document.getElementById('ov-donut'),{
+    type:'doughnut',
+    data:{labels:dData.map(([k])=>k),datasets:[{data:dData.map(([,v])=>v),
+      backgroundColor:dData.map(([k])=>SC[k]||'#4a7ea0'),borderWidth:1,borderColor:'#0b1f18',hoverOffset:4}]},
+    options:{cutout:'64%',plugins:{legend:{display:false}},animation:{duration:400}},
+  });
+  document.getElementById('ov-leg').innerHTML=dData.map(([k,v])=>
+    `<div class="lr"><div class="ld" style="background:${SC[k]||'#4a7ea0'}"></div><span>${k}</span><span class="lv" style="color:${SC[k]||'#4a7ea0'}">${v}</span></div>`
+  ).join('');
+
+  // Comparison table
+  document.getElementById('ov-tbl').innerHTML=_data.map((sp,i)=>{
+    const pass=sp.runs.filter(r=>r.status==='PASS').length;
+    const fail=sp.runs.filter(r=>r.status==='FAIL').length;
+    const other=sp.runs.length-pass-fail;
+    const rate=pct(pass,sp.runs.length||1);
+    const execs=[...new Set(sp.runs.map(r=>r.execKey))].length;
+    const defs=[...new Map(sp.runs.flatMap(r=>r.defects).map(d=>[d.key,d])).values()].length;
+    const col=SPACE_COLORS[i%SPACE_COLORS.length];
+    return`<tr onclick="showView('${sp.project}')" style="cursor:pointer">
+      <td><span class="mono" style="color:${col}">${sp.project}</span></td>
+      <td class="mono">${sp.runs.length}</td>
+      <td class="mono" style="color:#68d391">${pass}</td>
+      <td class="mono" style="color:#fc8181">${fail}</td>
+      <td class="mono" style="color:#63b3ed">${other}</td>
+      <td><span class="pill ${rate>=90?'p-PASS':rate>=60?'p-BLOCKED':'p-FAIL'}">${rate}%</span></td>
+      <td class="mono">${execs}</td>
+      <td class="mono" style="color:${defs>0?'#fc8181':'#68d391'}">${defs}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── SPACE DETAIL ─────────────────────────────────────────────
+function renderSpace(sp){
+  if(!sp) return;
+  const idx=_data.indexOf(sp);
+  const col=SPACE_COLORS[idx%SPACE_COLORS.length];
+  const runs=sp.runs;
+  const pass=runs.filter(r=>r.status==='PASS').length;
+  const fail=runs.filter(r=>r.status==='FAIL').length;
+  const todo=runs.filter(r=>r.status==='TODO').length;
+  const blocked=runs.filter(r=>r.status==='BLOCKED').length;
+  const tot=runs.length||1;
+  const rate=pct(pass,tot);
+  const executions=[...new Set(runs.map(r=>r.execKey))].length;
+  const allDefects=[...new Map(runs.flatMap(r=>r.defects).map(d=>[d.key,d])).values()];
+
+  const mc=document.getElementById('main-content');
+  mc.innerHTML=`
+    <div class="space-hdr">
+      <div>
+        <div class="space-title">
+          <span style="width:10px;height:10px;border-radius:50%;background:${col};display:inline-block;flex-shrink:0"></span>
+          ${sp.project}
+        </div>
+        <div class="space-meta">${runs.length} test runs · ${executions} executions · ${sp.requirements.length} requirements</div>
+      </div>
+      <span class="health-badge ${rate>=90?'hb-good':rate>=60?'hb-warn':'hb-bad'}">● ${rate}% pass rate</span>
+    </div>
+
+    <!-- KPIs -->
+    <div class="kpis">
+      <div class="kpi cy"><div class="kpi-l">Total Tests</div><div class="kpi-v">${tot}</div><div class="kpi-s">${executions} executions</div></div>
+      <div class="kpi gn"><div class="kpi-l">Pass</div><div class="kpi-v">${pass}</div><div class="kpi-s">${rate}%</div></div>
+      <div class="kpi rd"><div class="kpi-l">Fail</div><div class="kpi-v">${fail}</div><div class="kpi-s">${pct(fail,tot)}%</div></div>
+      <div class="kpi yw"><div class="kpi-l">TODO</div><div class="kpi-v">${todo}</div><div class="kpi-s">${pct(todo,tot)}%</div></div>
+      <div class="kpi bl"><div class="kpi-l">Blocked</div><div class="kpi-v">${blocked}</div><div class="kpi-s">${pct(blocked,tot)}%</div></div>
+      <div class="kpi pp"><div class="kpi-l">Open Defects</div><div class="kpi-v">${allDefects.length}</div><div class="kpi-s">linked</div></div>
+    </div>
+
+    <!-- Row 1: donut · trend · req coverage -->
+    <div class="g3">
+      <div class="panel">
+        <div class="ph">Status</div>
+        <div class="donut-wrap">
+          <canvas id="sp-donut" width="140" height="140"></canvas>
+          <div class="donut-center"><div class="donut-pct" id="sp-dpct">${rate}%</div><div class="donut-lbl">pass</div></div>
+        </div>
+        <div class="legend" id="sp-leg"></div>
+      </div>
+      <div class="panel">
+        <div class="ph">Status Over Time</div>
+        <canvas id="sp-trend" height="170"></canvas>
+      </div>
+      <div class="panel">
+        <div class="ph">Req Coverage</div>
+        <canvas id="sp-req" height="110"></canvas>
+        <div style="margin-top:10px" id="sp-cov-bars"></div>
+      </div>
+    </div>
+
+    <!-- Plans -->
+    <div class="g1">
+      <div class="panel">
+        <div class="ph">Test Plans & Executions <span class="ph-tag">${sp.plansMap.length} plans</span></div>
+        <div id="sp-plans"></div>
+      </div>
+    </div>
+
+    <!-- Assignee · Defects -->
+    <div class="g2">
+      <div class="panel">
+        <div class="ph">Assignee / Tester Breakdown</div>
+        <div id="sp-assignees"></div>
+      </div>
+      <div class="panel">
+        <div class="ph">Defects Linked to Failures <span class="ph-tag">${allDefects.length}</span></div>
+        <div id="sp-defects"></div>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="g1">
+      <div class="panel">
+        <div class="ph">Test Runs <input class="sbar" id="sp-srch" placeholder="Search…" oninput="spFilterTbl(this.value)"/></div>
+        <div class="tw"><table><thead><tr>
+          <th>#</th><th>Test</th><th>Summary</th><th>Status</th><th>Execution</th><th>Assignee</th><th>Defects</th><th>Date</th>
+        </tr></thead><tbody id="sp-tb"></tbody></table></div>
+      </div>
+    </div>
+  `;
+
+  // Donut
+  const groups={PASS:pass,FAIL:fail,TODO:todo,BLOCKED:blocked};
+  const dEntries=Object.entries(groups).filter(([,v])=>v>0);
+  C['sp-donut']=new Chart(document.getElementById('sp-donut'),{
+    type:'doughnut',
+    data:{labels:dEntries.map(([k])=>k),datasets:[{data:dEntries.map(([,v])=>v),
+      backgroundColor:dEntries.map(([k])=>SC[k]),borderWidth:1,borderColor:'#0b1f18',hoverOffset:4}]},
+    options:{cutout:'66%',plugins:{legend:{display:false}},animation:{duration:400}},
+  });
+  document.getElementById('sp-leg').innerHTML=dEntries.map(([k,v])=>
+    `<div class="lr"><div class="ld" style="background:${SC[k]}"></div><span>${k}</span><span class="lv" style="color:${SC[k]}">${v}</span></div>`
+  ).join('');
+
+  // Trend
+  const byDay={};
+  runs.forEach(r=>{
+    if(!r.finishedOn) return;
+    const d=new Date(r.finishedOn);
+    const key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    if(!byDay[key]) byDay[key]={pass:0,fail:0,other:0};
+    if(r.status==='PASS') byDay[key].pass++;
+    else if(r.status==='FAIL') byDay[key].fail++;
+    else byDay[key].other++;
+  });
+  const dLabels=Object.keys(byDay).sort();
+  C['sp-trend']=new Chart(document.getElementById('sp-trend'),{
+    type:'bar',
+    data:{
+      labels:dLabels.map(d=>{const p=d.split('-');return`${p[1]}/${p[2]}`;}),
+      datasets:[
+        {label:'Pass',data:dLabels.map(d=>byDay[d].pass),backgroundColor:'rgba(104,211,145,.75)',stack:'a'},
+        {label:'Fail',data:dLabels.map(d=>byDay[d].fail),backgroundColor:'rgba(252,129,129,.75)',stack:'a'},
+        {label:'Other',data:dLabels.map(d=>byDay[d].other),backgroundColor:'rgba(99,179,237,.55)',stack:'a'},
+      ]},
+    options:{responsive:true,
+      plugins:{legend:{position:'top',labels:{boxWidth:9,padding:7}}},
+      scales:{x:{stacked:true,grid:{color:'rgba(255,255,255,.03)'},ticks:{maxTicksLimit:10}},
+              y:{stacked:true,beginAtZero:true,grid:{color:'rgba(255,255,255,.03)'}}},
+      animation:{duration:400}},
+  });
+
+  // Req coverage
+  const reqs=sp.requirements;
+  const rFull=reqs.filter(r=>r.testCoverage?.status==='COVERED').length;
+  const rPart=reqs.filter(r=>r.testCoverage?.status==='PARTIAL').length;
+  const rNone=reqs.filter(r=>!r.testCoverage||r.testCoverage.status==='UNCOVERED').length;
+  const rTot=reqs.length||1;
+  C['sp-req']=new Chart(document.getElementById('sp-req'),{
+    type:'doughnut',
+    data:{labels:['Covered','Partial','Uncovered'],datasets:[{data:[rFull,rPart,rNone],
+      backgroundColor:['rgba(104,211,145,.8)','rgba(246,224,94,.7)','rgba(252,129,129,.75)'],
+      borderWidth:1,borderColor:'#0b1f18',hoverOffset:4}]},
+    options:{cutout:'52%',plugins:{legend:{position:'bottom',labels:{boxWidth:9,padding:5,font:{size:9}}}},animation:{duration:400}},
+  });
+  document.getElementById('sp-cov-bars').innerHTML=[
+    {label:'Fully covered',val:rFull,tot:rTot,color:'var(--green)'},
+    {label:'Partially covered',val:rPart,tot:rTot,color:'var(--yellow)'},
+    {label:'Not covered',val:rNone,tot:rTot,color:'var(--red)'},
+  ].map(({label,val,tot:t,color})=>`
+    <div class="pbar-row">
+      <div class="pbar-label"><span>${label}</span><span>${val}/${t} (${pct(val,t)}%)</span></div>
+      <div class="pbar-bg"><div class="pbar-fill" style="width:${pct(val,t)}%;background:${color}"></div></div>
+    </div>`).join('');
+
+  // Plans
+  document.getElementById('sp-plans').innerHTML=sp.plansMap.length
+    ? sp.plansMap.map((plan,pi)=>{
+        const pr=runs.filter(r=>r.planKeys.includes(plan.key));
+        const pp2=pr.filter(r=>r.status==='PASS').length;
+        const pf2=pr.filter(r=>r.status==='FAIL').length;
+        const pt2=pr.filter(r=>r.status==='TODO').length;
+        const rate2=pct(pp2,pr.length||1);
+        const dc=rate2>=90?'#68d391':rate2>=60?'#f6ad55':'#fc8181';
+        const execRows=plan.executions.map(exec=>{
+          const eR=pr.filter(r=>r.execKey===exec.key);
+          const dots=['PASS','FAIL','TODO','BLOCKED'].map(s=>eR.filter(r=>r.status===s).map(()=>`<div class="exec-dot" style="background:${SC[s]}"></div>`).join('')).join('');
+          const ep=eR.filter(r=>r.status==='PASS').length;
+          const ef=eR.filter(r=>r.status==='FAIL').length;
+          return`<div class="exec-row">
+            <span class="mono" style="color:var(--cyan);min-width:90px">${exec.key}</span>
+            <span class="exec-name">${exec.summary}</span>
+            <div style="display:flex;gap:2px;flex-wrap:wrap;max-width:80px">${dots}</div>
+            <span style="font-size:9px;color:var(--muted);font-family:var(--mono);min-width:70px;text-align:right">${ep}P · ${ef}F · ${eR.length-ep-ef}O</span>
+          </div>`;
+        }).join('');
+        return`<div class="plan-block">
+          <div class="plan-hdr" onclick="this.nextElementSibling.classList.toggle('open')">
+            <span class="plan-name">📋 ${plan.key} — ${plan.summary}</span>
+            <div class="plan-stats">
+              <span class="plan-stat" style="color:#68d391">✓${pp2}</span>
+              <span class="plan-stat" style="color:#fc8181">✗${pf2}</span>
+              <span class="plan-stat" style="color:#63b3ed">◌${pt2}</span>
+              <span class="pill" style="background:${dc+'22'};color:${dc};border:1px solid ${dc+'44'}">${rate2}%</span>
+            </div>
+          </div>
+          <div class="plan-body">${execRows||'<div style="color:var(--muted);font-size:11px;padding:6px 0">No executions linked</div>'}</div>
+        </div>`;
+      }).join('')
+    : '<div style="text-align:center;padding:20px;color:var(--muted);font-size:12px">No test plans found</div>';
+
+  // Assignees
+  const amap={};
+  runs.forEach(r=>{if(!amap[r.assignee])amap[r.assignee]={PASS:0,FAIL:0,TODO:0,BLOCKED:0};amap[r.assignee][r.status]=(amap[r.assignee][r.status]||0)+1;});
+  const aSorted=Object.entries(amap).sort((a,b)=>Object.values(b[1]).reduce((s,v)=>s+v,0)-Object.values(a[1]).reduce((s,v)=>s+v,0));
+  const maxA=Math.max(...aSorted.map(([,d])=>Object.values(d).reduce((s,v)=>s+v,0)),1);
+  document.getElementById('sp-assignees').innerHTML=aSorted.map(([name,d])=>{
+    const t=Object.values(d).reduce((s,v)=>s+v,0);
+    const pp3=pct(d.PASS||0,t);
+    const segs=Object.entries(d).filter(([,v])=>v>0).map(([s,v])=>
+      `<div class="abar-seg" style="width:${pct(v,t)}%;background:${SC[s]||'#4a7ea0'}" title="${s}:${v}"></div>`).join('');
+    return`<div class="ab">
+      <div class="an" title="${name}">${name}</div>
+      <div class="abar"><div class="abar-inner" style="width:${pct(t,maxA)}%">${segs}</div></div>
+      <div class="av">${t} · ${pp3}%</div>
+    </div>`;
+  }).join('')||'<div style="text-align:center;padding:20px;color:var(--muted);font-size:12px">No assignee data</div>';
+
+  // Defects
+  const defCnt={};
+  runs.forEach(r=>r.defects.forEach(d=>{defCnt[d.key]=(defCnt[d.key]||0)+1;}));
+  document.getElementById('sp-defects').innerHTML=allDefects.length
+    ?allDefects.sort((a,b)=>(defCnt[b.key]||0)-(defCnt[a.key]||0)).map(d=>{
+        const c=defCnt[d.key]||0;
+        const sc2=(d.status||'').toLowerCase()==='open'?'#fc8181':'#68d391';
+        return`<div class="defect-row">
+          <span class="defect-key">${d.key}</span>
+          <span class="defect-sum" title="${d.summary}">${d.summary||'(no summary)'}</span>
+          <span style="font-size:9px;color:${sc2};font-weight:700;min-width:46px;text-align:right;font-family:var(--mono)">${d.status||'Open'}</span>
+          <span class="defect-cnt">${c} failure${c!==1?'s':''}</span>
+        </div>`;
+      }).join('')
+    : '<div style="text-align:center;padding:20px;color:var(--muted);font-size:12px">No linked defects 🎉</div>';
+
+  // Table
+  _spRuns=[...runs];
+  renderSpTable(_spRuns);
+}
+
+let _spRuns=[];
+function spFilterTbl(q){renderSpTable(q?_spRuns.filter(r=>r.testKey.toLowerCase().includes(q.toLowerCase())||r.testSummary.toLowerCase().includes(q.toLowerCase())||r.assignee.toLowerCase().includes(q.toLowerCase())):_spRuns);}
+function renderSpTable(rows){
+  document.getElementById('sp-tb').innerHTML=rows.length
+    ?rows.slice().sort((a,b)=>(b.finishedOn||0)-(a.finishedOn||0)).map((r,i)=>`<tr>
+        <td class="mono" style="color:var(--muted)">${i+1}</td>
+        <td class="mono" style="color:var(--cyan)">${r.testKey}</td>
+        <td style="max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${r.testSummary}">${r.testSummary}</td>
+        <td><span class="pill p-${r.status}">${r.status}</span></td>
+        <td class="mono" style="color:var(--muted)">${r.execKey}</td>
+        <td style="font-size:10px;white-space:nowrap">${r.assignee}</td>
+        <td class="mono" style="color:#fc8181">${r.defects.map(d=>d.key).join(', ')||'—'}</td>
+        <td class="mono" style="color:var(--muted)">${fmtDate(r.finishedOn)}</td>
+      </tr>`).join('')
+    :`<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted);font-size:12px">No results</td></tr>`;
+}
+
+function reset(){
+  document.getElementById('dash').style.display='none';
+  document.getElementById('auth-screen').style.display='flex';
+  document.getElementById('btn-back').style.display='none';
+  Object.keys(C).forEach(k=>kill(k));
+}
+function showErr(m){const el=document.getElementById('err');el.textContent='⚠ '+m;el.style.display='block';}
+function hideErr(){document.getElementById('err').style.display='none';}
+
+document.getElementById('bar-date').textContent=
+  new Date().toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric',year:'numeric'});
+</script>
+</body>
+</html>
